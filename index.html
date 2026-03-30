@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ProCRM — Premium Business CRM</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+    <span class="logo-text">ProCRM</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="#" class="nav-item active" data-page="dashboard">
+      <i class="fas fa-chart-line"></i><span>Dashboard</span>
+    </a>
+    <a href="#" class="nav-item" data-page="clients">
+      <i class="fas fa-users"></i><span>Clients</span>
+    </a>
+    <a href="#" class="nav-item" data-page="bookings">
+      <i class="fas fa-calendar-check"></i><span>Bookings</span>
+    </a>
+    <a href="#" class="nav-item" data-page="schedule">
+      <i class="fas fa-calendar-alt"></i><span>Schedule</span>
+    </a>
+    <a href="#" class="nav-item" data-page="revenue">
+      <i class="fas fa-dollar-sign"></i><span>Revenue</span>
+    </a>
+    <a href="#" class="nav-item" data-page="employees">
+      <i class="fas fa-user-gear"></i><span>Employees</span>
+    </a>
+    <a href="#" class="nav-item" data-page="payroll">
+      <i class="fas fa-money-check-dollar"></i><span>Payroll</span>
+    </a>
+    <a href="#" class="nav-item" data-page="notifications">
+      <i class="fas fa-bell"></i><span>Notifications</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-avatar"><i class="fas fa-user-tie"></i></div>
+    <div class="user-info">
+      <span class="user-name" id="companyName">My Company</span>
+      <span class="user-role">Admin</span>
+    </div>
+  </div>
+</aside>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+  <div class="topbar-title" id="pageTitle">Dashboard</div>
+  <div class="topbar-actions">
+    <span class="user-chip" id="activeUserChip">Not signed in</span>
+    <button class="btn-icon" title="Notifications" id="notifBtn"><i class="fas fa-bell"></i><span class="badge" id="notifBadge">0</span></button>
+    <button class="btn-secondary" id="accountBtn"><i class="fas fa-user-cog"></i> Account</button>
+    <button class="btn-secondary" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Logout</button>
+    <button class="btn-primary" id="quickAddBtn"><i class="fas fa-plus"></i> Quick Add</button>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="main-content" id="mainContent">
+
+  <!-- DASHBOARD PAGE -->
+  <section class="page active" id="page-dashboard">
+    <div class="page-header">
+      <h1>Good morning! 👋</h1>
+      <p class="subtitle">Here's what's happening with your business today.</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card accent-green">
+        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Revenue</span>
+          <span class="stat-value" id="totalRevenue">$0</span>
+          <span class="stat-change positive" id="revChange">+0% this month</span>
+        </div>
+      </div>
+      <div class="stat-card accent-blue">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Clients</span>
+          <span class="stat-value" id="totalClients">0</span>
+          <span class="stat-change" id="clientChange">Active accounts</span>
+        </div>
+      </div>
+      <div class="stat-card accent-purple">
+        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Upcoming Bookings</span>
+          <span class="stat-value" id="upcomingBookings">0</span>
+          <span class="stat-change" id="bookingChange">Next 7 days</span>
+        </div>
+      </div>
+      <div class="stat-card accent-orange">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Pending Bookings</span>
+          <span class="stat-value" id="pendingBookings">0</span>
+          <span class="stat-change">Awaiting confirmation</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Bookings</h3>
+          <button class="btn-link" data-page="bookings">View all</button>
+        </div>
+        <div class="card-body" id="recentBookingsList">
+          <div class="empty-state"><i class="fas fa-calendar-plus"></i><p>No bookings yet</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Top Clients</h3>
+          <button class="btn-link" data-page="clients">View all</button>
+        </div>
+        <div class="card-body" id="topClientsList">
+          <div class="empty-state"><i class="fas fa-user-plus"></i><p>No clients yet</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="card-header">
+        <h3>Today's Schedule</h3>
+        <span class="date-badge" id="todayDate"></span>
+      </div>
+      <div class="card-body" id="todaySchedule">
+        <div class="empty-state"><i class="fas fa-sun"></i><p>Nothing scheduled for today</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLIENTS PAGE -->
+  <section class="page" id="page-clients">
+    <div class="page-header">
+      <h1>Clients</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="exportClientsBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+        <button class="btn-primary" id="addClientBtn"><i class="fas fa-user-plus"></i> Add Client</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-toolbar">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="clientSearch" placeholder="Search clients..." />
+        </div>
+        <div class="filter-group">
+          <select id="clientFilter">
+            <option value="all">All Clients</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="vip">VIP</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="clientsTable">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Contact</th>
+              <th>Status</th>
+              <th>Total Spent</th>
+              <th>Bookings</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="clientsBody">
+          </tbody>
+        </table>
+        <div class="table-empty" id="clientsEmpty">
+          <i class="fas fa-users"></i>
+          <p>No clients found. Add your first client!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOOKINGS PAGE -->
+  <section class="page" id="page-bookings">
+    <div class="page-header">
+      <h1>Bookings</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="exportBookingsBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+        <button class="btn-primary" id="addBookingBtn"><i class="fas fa-plus"></i> New Booking</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="all-bookings">All</button>
+      <button class="tab" data-tab="booked-bookings">Booked</button>
+      <button class="tab" data-tab="pending-bookings">Pending</button>
+      <button class="tab" data-tab="confirmed-bookings">Confirmed</button>
+      <button class="tab" data-tab="completed-bookings">Completed</button>
+      <button class="tab" data-tab="cancelled-bookings">Cancelled</button>
+    </div>
+    <div class="card">
+      <div class="card-toolbar">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="bookingSearch" placeholder="Search bookings..." />
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="bookingsTable">
+          <thead>
+            <tr>
+              <th>Booking ID</th>
+              <th>Client</th>
+              <th>Service</th>
+              <th>Assigned Team</th>
+              <th>Date & Time</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="bookingsBody">
+          </tbody>
+        </table>
+        <div class="table-empty" id="bookingsEmpty">
+          <i class="fas fa-calendar-plus"></i>
+          <p>No bookings found.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEDULE PAGE -->
+  <section class="page" id="page-schedule">
+    <div class="page-header">
+      <h1>Schedule</h1>
+      <div class="header-controls">
+        <select id="scheduleViewMode" class="inline-select">
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        <select id="scheduleEmployeeFilter" class="inline-select">
+          <option value="all">All Employees</option>
+        </select>
+        <button class="btn-secondary" id="smartAssignBtn"><i class="fas fa-wand-magic-sparkles"></i> Smart Assign</button>
+        <button class="btn-secondary" id="prevWeek"><i class="fas fa-chevron-left"></i></button>
+        <span class="week-label" id="weekLabel"></span>
+        <button class="btn-secondary" id="nextWeek"><i class="fas fa-chevron-right"></i></button>
+        <button class="btn-primary" id="todayBtn">Today</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+  </section>
+
+  <!-- REVENUE PAGE -->
+  <section class="page" id="page-revenue">
+    <div class="page-header">
+      <h1>Revenue</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="exportRevenueBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+        <button class="btn-primary" id="addPaymentBtn"><i class="fas fa-plus"></i> Record Payment</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card accent-purple">
+        <div class="stat-icon"><i class="fas fa-sun"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Daily Revenue</span>
+          <span class="stat-value" id="dailyRevenue">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-orange">
+        <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Weekly Revenue</span>
+          <span class="stat-value" id="weeklyRevenue">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-green">
+        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">This Month</span>
+          <span class="stat-value" id="monthRevenue">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-blue">
+        <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">This Year</span>
+          <span class="stat-value" id="yearRevenue">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-purple">
+        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Booked Revenue</span>
+          <span class="stat-value" id="bookedRevenue">$0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="card-header">
+        <h3>Payment History</h3>
+        <div class="tabs revenue-tabs" id="revenueTabs">
+          <button class="tab revenue-tab" data-revenue-filter="day">Daily</button>
+          <button class="tab revenue-tab" data-revenue-filter="week">Weekly</button>
+          <button class="tab revenue-tab" data-revenue-filter="month">Monthly</button>
+          <button class="tab revenue-tab" data-revenue-filter="year">Yearly</button>
+          <button class="tab revenue-tab active" data-revenue-filter="all">All</button>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="revenueTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Client</th>
+              <th>Service</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="revenueBody">
+          </tbody>
+        </table>
+        <div class="table-empty" id="revenueEmpty">
+          <i class="fas fa-receipt"></i>
+          <p>No payments recorded yet.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EMPLOYEES PAGE -->
+  <section class="page" id="page-employees">
+    <div class="page-header">
+      <h1>Employees</h1>
+      <button class="btn-primary" id="addEmployeeBtn"><i class="fas fa-user-plus"></i> Add Employee</button>
+    </div>
+
+    <div class="card">
+      <div class="card-toolbar">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="employeeSearch" placeholder="Search employees..." />
+        </div>
+        <div class="filter-group">
+          <select id="employeeFilter">
+            <option value="all">All Roles</option>
+            <option value="salesman">Salesmen</option>
+            <option value="technician">Technicians</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="employeesTable">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Contact</th>
+              <th>Availability</th>
+              <th>Pay Setup</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="employeesBody"></tbody>
+        </table>
+        <div class="table-empty" id="employeesEmpty">
+          <i class="fas fa-user-gear"></i>
+          <p>No employees yet. Add your first team member.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAYROLL PAGE -->
+  <section class="page" id="page-payroll">
+    <div class="page-header">
+      <h1>Payroll</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="exportPayrollBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+        <button class="btn-primary" id="runPayrollBtn"><i class="fas fa-play"></i> Run Payroll (This Month)</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card accent-green">
+        <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Payroll This Month</span>
+          <span class="stat-value" id="payrollMonthTotal">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-blue">
+        <div class="stat-icon"><i class="fas fa-user-tie"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Sales Commissions</span>
+          <span class="stat-value" id="salesPayrollTotal">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-purple">
+        <div class="stat-icon"><i class="fas fa-screwdriver-wrench"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Technician Pay</span>
+          <span class="stat-value" id="techPayrollTotal">$0</span>
+        </div>
+      </div>
+      <div class="stat-card accent-orange">
+        <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Payroll Runs</span>
+          <span class="stat-value" id="payrollRunsCount">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Payroll Records</h3>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="payrollTable">
+          <thead>
+            <tr>
+              <th>Run Date</th>
+              <th>Employee</th>
+              <th>Role</th>
+              <th>Period</th>
+              <th>Details</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="payrollBody"></tbody>
+        </table>
+        <div class="table-empty" id="payrollEmpty">
+          <i class="fas fa-money-check-dollar"></i>
+          <p>No payroll has been run yet.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOTIFICATIONS PAGE -->
+  <section class="page" id="page-notifications">
+    <div class="page-header">
+      <h1>Notifications & Reminders</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="saveTemplateBtn"><i class="fas fa-floppy-disk"></i> Save Templates</button>
+        <button class="btn-primary" id="sendRemindersBtn"><i class="fas fa-paper-plane"></i> Send Client Reminder Texts</button>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Employee Notifications</h3>
+          <button class="btn-link" id="markNotificationsReadBtn">Mark all read</button>
+        </div>
+        <div class="card-body" id="employeeNotificationsList">
+          <div class="empty-state"><i class="fas fa-bell"></i><p>No employee notifications yet</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Client Reminder Queue</h3>
+          <span class="date-badge" id="pendingRemindersBadge">0 pending</span>
+        </div>
+        <div class="card-body" id="clientRemindersList">
+          <div class="empty-state"><i class="fas fa-message"></i><p>No reminders queued</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="card-header">
+        <h3>Notification Templates</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Job Reminder Template</label>
+            <textarea id="tplJobReminder" rows="3" placeholder="Reminder: {service} for {clientName} on {date} at {time}."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Schedule Update Template</label>
+            <textarea id="tplScheduleUpdate" rows="3" placeholder="Schedule update: booking #{bookingId} moved to {date} {time}."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- MODALS -->
+
+<!-- Add Client Modal -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="clientModalTitle">Add New Client</h2>
+      <button class="modal-close" data-modal="clientModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="clientForm">
+        <input type="hidden" id="clientId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input type="text" id="clientFirstName" placeholder="First name" required />
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input type="text" id="clientLastName" placeholder="Last name" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="clientEmail" placeholder="email@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="clientPhone" placeholder="+1 (555) 000-0000" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Company</label>
+            <input type="text" id="clientCompany" placeholder="Company name" />
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="clientStatus">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="vip">VIP</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="clientNotes" placeholder="Notes about this client..." rows="3"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="clientModal">Cancel</button>
+      <button class="btn-primary" id="saveClientBtn">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Booking Modal -->
+<div class="modal-overlay" id="bookingModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="bookingModalTitle">New Booking</h2>
+      <button class="modal-close" data-modal="bookingModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="bookingForm">
+        <input type="hidden" id="bookingId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>Client *</label>
+            <select id="bookingClient" required>
+              <option value="">Select a client...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Service *</label>
+            <input type="text" id="bookingService" placeholder="e.g. Consultation, Session..." required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="bookingDate" required />
+          </div>
+          <div class="form-group">
+            <label>Time *</label>
+            <input type="time" id="bookingTime" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Duration</label>
+            <select id="bookingDuration">
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="90">1.5 hours</option>
+              <option value="120">2 hours</option>
+              <option value="180">3 hours</option>
+              <option value="240">4 hours</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount ($)</label>
+            <input type="number" id="bookingAmount" placeholder="0.00" min="0" step="0.01" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sold By</label>
+            <select id="bookingSalesman">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Assigned Technician</label>
+            <select id="bookingTechnician">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Status</label>
+            <select id="bookingStatus">
+              <option value="booked">Booked</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="bookingLocation" placeholder="Address or online link" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="bookingNotes" placeholder="Booking notes..." rows="3"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Completed By</label>
+            <input type="text" id="bookingCompletedBy" placeholder="Auto set when completed" readonly />
+          </div>
+          <div class="form-group">
+            <label>Completed At</label>
+            <input type="text" id="bookingCompletedAt" placeholder="Auto set when completed" readonly />
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="bookingModal">Cancel</button>
+      <button class="btn-primary" id="saveBookingBtn">Save Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div class="modal-overlay" id="employeeModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="employeeModalTitle">Add Employee</h2>
+      <button class="modal-close" data-modal="employeeModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="employeeForm">
+        <input type="hidden" id="employeeId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input type="text" id="employeeFirstName" placeholder="First name" required />
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input type="text" id="employeeLastName" placeholder="Last name" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="employeeEmail" placeholder="email@example.com" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="employeePhone" placeholder="+1 (555) 000-0000" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Role *</label>
+            <select id="employeeRole">
+              <option value="salesman">Salesman</option>
+              <option value="technician">Technician</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="employeeStatus">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Pay Type</label>
+            <select id="employeePayType">
+              <option value="commission">Commission (%)</option>
+              <option value="per_job">Per Job ($)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pay Rate *</label>
+            <input type="number" id="employeePayRate" min="0" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Commission Rate (%)</label>
+            <input type="number" id="employeeCommissionRate" min="0" step="0.01" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label>Hourly Rate ($)</label>
+            <input type="number" id="employeeHourlyRate" min="0" step="0.01" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Time</label>
+            <input type="time" id="employeeStartTime" value="08:00" />
+          </div>
+          <div class="form-group">
+            <label>End Time</label>
+            <input type="time" id="employeeEndTime" value="17:00" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Max Jobs Per Day</label>
+            <input type="number" id="employeeMaxJobs" min="1" step="1" value="6" />
+          </div>
+          <div class="form-group">
+            <label>Login Password (optional)</label>
+            <input type="password" id="employeePassword" placeholder="Set employee password" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Available Days</label>
+          <div class="day-pills" id="employeeAvailableDays">
+            <label><input type="checkbox" value="1" checked /> Mon</label>
+            <label><input type="checkbox" value="2" checked /> Tue</label>
+            <label><input type="checkbox" value="3" checked /> Wed</label>
+            <label><input type="checkbox" value="4" checked /> Thu</label>
+            <label><input type="checkbox" value="5" checked /> Fri</label>
+            <label><input type="checkbox" value="6" /> Sat</label>
+            <label><input type="checkbox" value="0" /> Sun</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="employeeNotes" rows="3" placeholder="Team notes..."></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="employeeModal">Cancel</button>
+      <button class="btn-primary" id="saveEmployeeBtn">Save Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="paymentModalTitle">Record Payment</h2>
+      <button class="modal-close" data-modal="paymentModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="paymentForm">
+        <input type="hidden" id="paymentId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>Client *</label>
+            <select id="paymentClient" required>
+              <option value="">Select a client...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Service</label>
+            <input type="text" id="paymentService" placeholder="Service description" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Amount *</label>
+            <input type="number" id="paymentAmount" placeholder="0.00" min="0" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" id="paymentDate" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Payment Method</label>
+            <select id="paymentMethod">
+              <option value="cash">Cash</option>
+              <option value="card">Credit/Debit Card</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="paypal">PayPal</option>
+              <option value="venmo">Venmo</option>
+              <option value="zelle">Zelle</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="paymentStatus">
+              <option value="paid">Paid</option>
+              <option value="pending">Pending</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="paymentNotes" placeholder="Payment notes..." rows="2"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="paymentModal">Cancel</button>
+      <button class="btn-primary" id="savePaymentBtn">Save Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Public Booking Form Modal -->
+<div class="modal-overlay" id="publicBookingModal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h2>Book an Appointment</h2>
+      <button class="modal-close" data-modal="publicBookingModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="publicBookingForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your First Name *</label>
+            <input type="text" id="pubFirstName" placeholder="First name" required />
+          </div>
+          <div class="form-group">
+            <label>Your Last Name *</label>
+            <input type="text" id="pubLastName" placeholder="Last name" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="pubEmail" placeholder="your@email.com" required />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="pubPhone" placeholder="+1 (555) 000-0000" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Service *</label>
+            <input type="text" id="pubService" placeholder="What service are you booking?" required />
+          </div>
+          <div class="form-group">
+            <label>Preferred Date *</label>
+            <input type="date" id="pubDate" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Preferred Time *</label>
+            <input type="time" id="pubTime" required />
+          </div>
+          <div class="form-group">
+            <label>Duration</label>
+            <select id="pubDuration">
+              <option value="30">30 minutes</option>
+              <option value="60" selected>1 hour</option>
+              <option value="90">1.5 hours</option>
+              <option value="120">2 hours</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Additional Notes</label>
+          <textarea id="pubNotes" placeholder="Any special requests or information..." rows="3"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="publicBookingModal">Cancel</button>
+      <button class="btn-primary" id="submitPublicBooking">Submit Booking Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
+<!-- Login Overlay -->
+<div class="modal-overlay open" id="loginOverlay">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h2>Sign In</h2>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@company.com" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" />
+      </div>
+      <button class="btn-link" id="forgotPasswordBtn" type="button" style="margin-top:10px;">Reset Password</button>
+      <p class="subtitle" style="margin-top:12px;">Default admin account: admin@procrm.local / Admin@12345</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" id="loginBtn"><i class="fas fa-right-to-bracket"></i> Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- Account Settings Modal -->
+<div class="modal-overlay" id="accountModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2>Account Settings</h2>
+      <button class="modal-close" data-modal="accountModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Current Email</label>
+        <input type="email" id="currentAccountEmail" readonly />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>New Email</label>
+        <input type="email" id="accountNewEmail" placeholder="new@email.com" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>New Password</label>
+        <input type="password" id="accountNewPassword" placeholder="Enter new password" />
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Confirm New Password</label>
+        <input type="password" id="accountConfirmPassword" placeholder="Confirm new password" />
+      </div>
+      <button class="btn-secondary" id="resetMyPasswordBtn" type="button" style="margin-top:14px;"><i class="fas fa-key"></i> Reset My Password</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="accountModal">Cancel</button>
+      <button class="btn-primary" id="saveAccountBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Menu -->
+<div class="quick-menu" id="quickMenu">
+  <button class="quick-item" id="qAddClient"><i class="fas fa-user-plus"></i> New Client</button>
+  <button class="quick-item" id="qAddEmployee"><i class="fas fa-user-gear"></i> New Employee</button>
+  <button class="quick-item" id="qAddBooking"><i class="fas fa-calendar-plus"></i> New Booking</button>
+  <button class="quick-item" id="qAddPayment"><i class="fas fa-dollar-sign"></i> Record Payment</button>
+  <button class="quick-item" id="qSendReminders"><i class="fas fa-message"></i> Send Reminder Texts</button>
+  <button class="quick-item" id="qPublicBook"><i class="fas fa-link"></i> Client Booking Form</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
