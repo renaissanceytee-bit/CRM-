@@ -1,0 +1,34 @@
+{
+  "id": "/",
+  "name": "ProCRM",
+  "short_name": "ProCRM",
+  "description": "Premium CRM for revenue, scheduling, employees, and customer operations.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#09111f",
+  "theme_color": "#09111f",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Booking",
+      "short_name": "Booking",
+      "url": "/#bookings"
+    },
+    {
+      "name": "Revenue",
+      "short_name": "Revenue",
+      "url": "/#revenue"
+    }
+  ]
+}

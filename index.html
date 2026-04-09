@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ProCRM" />
   <title>ProCRM — Premium Business CRM</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon.svg" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
@@ -38,8 +44,22 @@
     <a href="#" class="nav-item" data-page="payroll">
       <i class="fas fa-money-check-dollar"></i><span>Payroll</span>
     </a>
-    <a href="#" class="nav-item" data-page="notifications">
-      <i class="fas fa-bell"></i><span>Notifications</span>
+    <a href="#" class="nav-item" data-page="owner-portal">
+      <i class="fas fa-briefcase"></i><span>Owner Portal</span>
+    </a>
+    <a href="#" class="nav-item" data-page="affiliate-portal">
+      <i class="fas fa-handshake-angle"></i><span>Affiliate Portal</span>
+    </a>
+    <a href="#" class="nav-item" data-page="my-portal">
+      <i class="fas fa-id-badge"></i><span>My Portal</span>
+    </a>
+
+    <a href="#" class="nav-item" data-page="team-chat">
+      <i class="fas fa-comments"></i><span>Team Chat</span>
+    </a>
+
+    <a href="#" class="nav-item" data-page="workspace">
+      <i class="fas fa-layer-group"></i><span>Workspace</span>
     </a>
   </nav>
   <div class="sidebar-footer">
@@ -48,6 +68,9 @@
       <span class="user-name" id="companyName">My Company</span>
       <span class="user-role">Admin</span>
     </div>
+    <button class="sidebar-quick-add" id="sidebarQuickAddBtn" data-quick-add-anchor="bottom" title="Quick Add">
+      <i class="fas fa-plus"></i>
+    </button>
   </div>
 </aside>
 
@@ -59,8 +82,8 @@
     <span class="user-chip" id="activeUserChip">Not signed in</span>
     <button class="btn-icon" title="Notifications" id="notifBtn"><i class="fas fa-bell"></i><span class="badge" id="notifBadge">0</span></button>
     <button class="btn-secondary" id="accountBtn"><i class="fas fa-user-cog"></i> Account</button>
+    <button class="btn-primary" id="quickAddBtn" data-quick-add-anchor="top"><i class="fas fa-plus"></i> Quick Add</button>
     <button class="btn-secondary" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Logout</button>
-    <button class="btn-primary" id="quickAddBtn"><i class="fas fa-plus"></i> Quick Add</button>
   </div>
 </div>
 
@@ -70,7 +93,7 @@
   <!-- DASHBOARD PAGE -->
   <section class="page active" id="page-dashboard">
     <div class="page-header">
-      <h1>Good morning! 👋</h1>
+      <h1 id="dashGreeting">Good morning! 👋</h1>
       <p class="subtitle">Here's what's happening with your business today.</p>
     </div>
 
@@ -177,8 +200,7 @@
               <th>Actions</th>
             </tr>
           </thead>
-          <tbody id="clientsBody">
-          </tbody>
+          <tbody id="clientsBody"></tbody>
         </table>
         <div class="table-empty" id="clientsEmpty">
           <i class="fas fa-users"></i>
@@ -360,7 +382,8 @@
         <div class="filter-group">
           <select id="employeeFilter">
             <option value="all">All Roles</option>
-            <option value="salesman">Salesmen</option>
+            <option value="manager">Managers</option>
+            <option value="salesman">Salespeople</option>
             <option value="technician">Technicians</option>
           </select>
         </div>
@@ -374,6 +397,7 @@
               <th>Contact</th>
               <th>Availability</th>
               <th>Pay Setup</th>
+              <th>Join Code</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -455,51 +479,687 @@
     </div>
   </section>
 
-  <!-- NOTIFICATIONS PAGE -->
-  <section class="page" id="page-notifications">
+  <section class="page" id="page-owner-portal">
     <div class="page-header">
-      <h1>Notifications & Reminders</h1>
+      <h1>Owner Portal</h1>
       <div class="header-controls">
-        <button class="btn-secondary" id="saveTemplateBtn"><i class="fas fa-floppy-disk"></i> Save Templates</button>
-        <button class="btn-primary" id="sendRemindersBtn"><i class="fas fa-paper-plane"></i> Send Client Reminder Texts</button>
+        <button class="btn-secondary" id="ownerPortalRunSmartAssignBtn"><i class="fas fa-wand-magic-sparkles"></i> Smart Assign Open Jobs</button>
+        <button class="btn-primary" id="ownerPortalRunPayrollBtn"><i class="fas fa-play"></i> Run Payroll</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="ownerPortalStatsGrid"></div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Management Queue</h3>
+        </div>
+        <div class="card-body" id="ownerPortalQueueList">
+          <div class="empty-state"><i class="fas fa-briefcase"></i><p>No management items yet.</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Team Load & Availability</h3>
+        </div>
+        <div class="card-body" id="ownerPortalTeamLoadList">
+          <div class="empty-state"><i class="fas fa-users-gear"></i><p>No employee data yet.</p></div>
+        </div>
       </div>
     </div>
 
     <div class="dashboard-grid">
       <div class="card">
         <div class="card-header">
-          <h3>Employee Notifications</h3>
-          <button class="btn-link" id="markNotificationsReadBtn">Mark all read</button>
+          <h3>Team Activity Feed</h3>
+          <button class="btn-secondary btn-sm" id="markOwnerNotifReadBtn"><i class="fas fa-check"></i> Mark read</button>
         </div>
-        <div class="card-body" id="employeeNotificationsList">
-          <div class="empty-state"><i class="fas fa-bell"></i><p>No employee notifications yet</p></div>
+        <div class="card-body" id="ownerPortalNotificationList">
+          <div class="empty-state"><i class="fas fa-bell"></i><p>No team activity yet.</p></div>
         </div>
       </div>
       <div class="card">
         <div class="card-header">
-          <h3>Client Reminder Queue</h3>
-          <span class="date-badge" id="pendingRemindersBadge">0 pending</span>
+          <h3>Launch Readiness</h3>
         </div>
-        <div class="card-body" id="clientRemindersList">
-          <div class="empty-state"><i class="fas fa-message"></i><p>No reminders queued</p></div>
+        <div class="card-body" id="ownerPortalLaunchList">
+          <div class="empty-state"><i class="fas fa-rocket"></i><p>Launch checks will appear here.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Growth Snapshot</h3>
+        </div>
+        <div class="card-body" id="ownerPortalGrowthList">
+          <div class="empty-state"><i class="fas fa-chart-line"></i><p>No growth activity yet.</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Quick Management Actions</h3>
+        </div>
+        <div class="card-body">
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="ownerPortalGoEmployeesBtn"><i class="fas fa-user-plus"></i> Add Employee</button>
+            <button class="btn-secondary" id="ownerPortalGoBookingsBtn"><i class="fas fa-calendar-plus"></i> Create Booking</button>
+            <button class="btn-secondary" id="ownerPortalGoAffiliateBtn"><i class="fas fa-handshake-angle"></i> Affiliate Portal</button>
+            <button class="btn-secondary" id="ownerPortalGoWorkspaceBtn"><i class="fas fa-layer-group"></i> Workspace Settings</button>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" id="page-my-portal">
+    <div class="page-header">
+      <h1>My Portal</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="myPortalAccountBtn"><i class="fas fa-user-cog"></i> Account Settings</button>
+        <button class="btn-primary" id="myPortalClockActionBtn"><i class="fas fa-clock"></i> Clock In</button>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="stat-card accent-blue">
+        <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Clock Status</span>
+          <span class="stat-value" id="myPortalClockStatus">Not clocked in</span>
+        </div>
+      </div>
+      <div class="stat-card accent-green">
+        <div class="stat-icon"><i class="fas fa-hourglass-half"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Hours This Week</span>
+          <span class="stat-value" id="myPortalHoursWeek">0.00h</span>
+        </div>
+      </div>
+      <div class="stat-card accent-purple">
+        <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Hours This Month</span>
+          <span class="stat-value" id="myPortalHoursMonth">0.00h</span>
+        </div>
+      </div>
+      <div class="stat-card accent-orange">
+        <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Total Payroll Earned</span>
+          <span class="stat-value" id="myPortalTotalEarned">$0.00</span>
+        </div>
+      </div>
+      <div class="stat-card accent-cyan">
+        <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Current Month Estimate</span>
+          <span class="stat-value" id="myPortalMonthEstimate">$0.00</span>
+        </div>
+      </div>
+      <div class="stat-card accent-red">
+        <div class="stat-icon"><i class="fas fa-circle-dollar-to-slot"></i></div>
+        <div class="stat-info">
+          <span class="stat-label">Estimated Owed</span>
+          <span class="stat-value" id="myPortalEstimatedOwed">$0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>My Upcoming Schedule</h3>
+        </div>
+        <div class="card-body" id="myPortalScheduleList">
+          <div class="empty-state"><i class="fas fa-calendar-check"></i><p>No scheduled jobs yet.</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Available Jobs To Claim</h3>
+        </div>
+        <div class="card-body" id="myPortalOpenJobsList">
+          <div class="empty-state"><i class="fas fa-briefcase"></i><p>No open jobs available.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>My Availability</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Start Time</label>
+              <input type="time" id="myPortalStartTime" value="08:00" />
+            </div>
+            <div class="form-group">
+              <label>End Time</label>
+              <input type="time" id="myPortalEndTime" value="17:00" />
+            </div>
+            <div class="form-group">
+              <label>Max Jobs Per Day</label>
+              <input type="number" id="myPortalMaxJobs" min="1" step="1" value="6" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Available Days</label>
+            <div class="day-pills" id="myPortalAvailableDays">
+              <label><input type="checkbox" value="1" checked /> Mon</label>
+              <label><input type="checkbox" value="2" checked /> Tue</label>
+              <label><input type="checkbox" value="3" checked /> Wed</label>
+              <label><input type="checkbox" value="4" checked /> Thu</label>
+              <label><input type="checkbox" value="5" checked /> Fri</label>
+              <label><input type="checkbox" value="6" /> Sat</label>
+              <label><input type="checkbox" value="0" /> Sun</label>
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-primary" id="saveMyAvailabilityBtn"><i class="fas fa-floppy-disk"></i> Save Availability</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>My Notifications</h3>
+        </div>
+        <div class="card-body" id="myPortalNotificationList">
+          <div class="empty-state"><i class="fas fa-bell"></i><p>No notifications yet.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Clock Sessions</h3>
+        </div>
+        <div class="card-body" id="myPortalSessionList">
+          <div class="empty-state"><i class="fas fa-user-clock"></i><p>No clock sessions yet.</p></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Payroll Entries</h3>
+        </div>
+        <div class="card-body" id="myPortalPayrollList">
+          <div class="empty-state"><i class="fas fa-money-check-dollar"></i><p>No payroll entries yet.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+    <section class="page" id="page-workspace">
+      <div class="page-header">
+        <h1>Workspace</h1>
+        <div class="header-controls">
+          <button class="btn-primary" id="saveWorkspaceBtn"><i class="fas fa-floppy-disk"></i> Save Settings</button>
+        </div>
+      </div>
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3>Business Information</h3>
+          </div>
+          <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Company Name</label>
+              <input type="text" id="workspaceCompanyName" placeholder="Your business name" />
+            </div>
+            <div class="form-group">
+              <label>Business Category</label>
+              <select id="workspaceBusinessCategory">
+                <option value="window-cleaning">Window Cleaning</option>
+                <option value="roof-cleaning">Roof Cleaning</option>
+                <option value="pressure-washing">Pressure Washing</option>
+                <option value="landscaping">Landscaping</option>
+                <option value="hvac">HVAC</option>
+                <option value="plumbing">Plumbing</option>
+                <option value="electrical">Electrical</option>
+                <option value="moving">Moving Services</option>
+                <option value="cleaning">General Cleaning</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Business Email</label>
+              <input type="email" id="workspaceBusinessEmail" placeholder="hello@company.com" />
+            </div>
+            <div class="form-group">
+              <label>Billing Cycle</label>
+              <select id="workspaceBillingCycle">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly (Save 30%)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Custom Category (optional)</label>
+              <input type="text" id="workspaceCustomCategory" placeholder="e.g. Solar Panel Cleaning" />
+            </div>
+            <div class="form-group">
+              <label>Industry Notes</label>
+              <input type="text" id="workspaceIndustry" placeholder="Home services, CRM, consulting..." />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Timezone</label>
+              <select id="workspaceTimezone">
+                <option value="America/New_York">Eastern</option>
+                <option value="America/Chicago">Central</option>
+                <option value="America/Denver">Mountain</option>
+                <option value="America/Los_Angeles">Pacific</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Subscription Plans</h3>
+        </div>
+        <div class="card-body plan-grid">
+          <button class="plan-card" data-plan="free" id="planFree">
+            <span class="plan-name">Free</span>
+            <span class="plan-price">$0/mo</span>
+            <span class="plan-copy">One user, basic CRM, public booking form, and simple reminders.</span>
+          </button>
+          <button class="plan-card" data-plan="starter" id="planStarter">
+            <span class="plan-name">Budget</span>
+            <span class="plan-price">$20/mo</span>
+            <span class="plan-copy">Team access for up to 3 employees with payroll and basic controls.</span>
+          </button>
+          <button class="plan-card" data-plan="professional" id="planProfessional">
+            <span class="plan-name">Growth</span>
+            <span class="plan-price">$50/mo</span>
+            <span class="plan-copy">Advanced scheduling, reporting, multiple services per booking, up to 10 employees.</span>
+          </button>
+          <button class="plan-card featured" data-plan="premium" id="planPremium">
+            <span class="plan-name">Unlimited</span>
+            <span class="plan-price">$100/mo</span>
+            <span class="plan-copy">Unlimited employees, dispatch automation, advanced management tools.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid workspace-grid mt-20">
+      <div class="card">
+        <div class="card-header">
+          <h3>Service Catalog</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Main Service</label>
+              <input type="text" id="workspaceMainService" placeholder="e.g. Window Cleaning" />
+            </div>
+            <div class="form-group">
+              <label>Sub Services (comma separated)</label>
+              <input type="text" id="workspaceSubServices" placeholder="Exterior, Interior, Screen Cleaning" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="addWorkspaceServiceBtn"><i class="fas fa-plus"></i> Add Service Group</button>
+          </div>
+          <div class="workspace-list" id="workspaceServiceCatalogList"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Web App & Notifications</h3>
+          <span class="date-badge" id="webAppStatusBadge">Web + Mobile Ready</span>
+        </div>
+        <div class="card-body feature-list">
+          <div class="workspace-list-item">
+            <div>
+              <strong>Install Status</strong>
+              <span id="webAppStatusText">Use Add to Home Screen on iPhone, or Install in browser.</span>
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="installWebAppBtn"><i class="fas fa-mobile-screen-button"></i> Install Web App</button>
+            <button class="btn-secondary" id="testNotificationBtn"><i class="fas fa-bell"></i> Send Test Notification</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid workspace-grid mt-20">
+      <div class="card">
+        <div class="card-header">
+          <h3>Notification System</h3>
+          <button class="btn-link" id="requestBrowserAlertsBtn">Enable Browser Alerts</button>
+        </div>
+        <div class="card-body feature-list">
+          <label class="switch-row"><input type="checkbox" id="prefEmployeePush" /> Employee assignment alerts</label>
+          <label class="switch-row"><input type="checkbox" id="prefDailyDigest" /> Daily business digest</label>
+          <label class="switch-row"><input type="checkbox" id="prefLeadAlerts" /> Lead, referral, and invite alerts</label>
+          <label class="switch-row"><input type="checkbox" id="prefPayrollAlerts" /> Payroll summary alerts</label>
+          <label class="switch-row"><input type="checkbox" id="prefBrowserAlerts" /> Browser notifications on supported devices</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Scheduling Rules</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Buffer Minutes</label>
+              <input type="number" id="workspaceBufferMinutes" min="0" step="5" />
+            </div>
+            <div class="form-group">
+              <label>Booking Window (Days)</label>
+              <input type="number" id="workspaceBookingWindowDays" min="1" step="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Default Duration</label>
+              <select id="workspaceDefaultDuration">
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes</option>
+                <option value="90">90 minutes</option>
+                <option value="120">120 minutes</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Auto Confirm New Bookings</label>
+              <select id="workspaceAutoConfirm">
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Edit Lock Window (Hours)</label>
+              <input type="number" id="workspaceEditLockHours" min="0" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Max Jobs Per Tech / Day</label>
+              <input type="number" id="workspaceMaxTechJobs" min="1" step="1" />
+            </div>
+          </div>
+          <label class="switch-row"><input type="checkbox" id="workspaceRoundRobin" /> Round-robin lead routing for unassigned jobs</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid workspace-grid mt-20">
+      <div class="card">
+        <div class="card-header">
+          <h3>Team Access & Security</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Session Timeout (Hours)</label>
+              <input type="number" id="workspaceSessionTimeoutHours" min="1" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Default New Hire Role</label>
+              <select id="workspaceDefaultNewHireRole">
+                <option value="salesman">Salesman</option>
+                <option value="technician">Technician</option>
+              </select>
+            </div>
+          </div>
+          <div class="feature-list">
+            <label class="switch-row"><input type="checkbox" id="workspaceInviteOnlyAccess" /> Invite-only employee access</label>
+            <label class="switch-row"><input type="checkbox" id="workspaceStrongPasswords" /> Require strong passwords</label>
+            <label class="switch-row"><input type="checkbox" id="workspaceAllowPasswordReset" /> Allow self-service password reset</label>
+            <label class="switch-row"><input type="checkbox" id="workspaceManagerDeleteApproval" /> Manager approval before destructive changes</label>
+          </div>
+          <div class="workspace-list" id="workspaceAccessSummary"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Affiliate Program</h3>
+          <button class="btn-link" id="generateAffiliateCodeBtn">Generate Code</button>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Public Affiliate Code</label>
+              <input type="text" id="workspaceAffiliateCode" placeholder="PROMOTECRM" />
+            </div>
+            <div class="form-group">
+              <label>Commission Percentage</label>
+              <input type="number" id="workspaceAffiliateCommission" min="1" max="100" step="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cookie Window (Days)</label>
+              <input type="number" id="workspaceAffiliateCookieDays" min="1" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Minimum Payout</label>
+              <input type="number" id="workspaceAffiliateMinPayout" min="0" step="5" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Affiliate Name</label>
+              <input type="text" id="affiliatePartnerName" placeholder="Partner name" />
+            </div>
+            <div class="form-group">
+              <label>Affiliate Email</label>
+              <input type="email" id="affiliatePartnerEmail" placeholder="partner@email.com" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="createAffiliatePartnerBtn"><i class="fas fa-user-plus"></i> Add Affiliate</button>
+            <button class="btn-secondary" id="simulateAffiliateSaleBtn"><i class="fas fa-bullhorn"></i> Log Referred Sale</button>
+          </div>
+          <div class="workspace-list" id="affiliateActivityList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid workspace-grid mt-20">
+      <div class="card">
+        <div class="card-header">
+          <h3>Invite Rewards</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Invite Discount (%)</label>
+              <input type="number" id="workspaceInviteDiscountPct" min="0" max="100" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Free Months Reward</label>
+              <input type="number" id="workspaceInviteFreeMonths" min="0" step="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Invite Friend Email</label>
+              <input type="email" id="workspaceInviteEmail" placeholder="friend@business.com" />
+            </div>
+            <div class="form-group">
+              <label>Redeem Invite Code</label>
+              <input type="text" id="workspaceRedeemInviteCode" placeholder="INVITE-1234" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="createInviteBtn"><i class="fas fa-paper-plane"></i> Create Invite</button>
+            <button class="btn-secondary" id="redeemInviteBtn"><i class="fas fa-gift"></i> Redeem Invite</button>
+          </div>
+          <div class="workspace-list" id="workspaceInviteList"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Manager Controls</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monthly Revenue Target</label>
+              <input type="number" id="workspaceRevenueTarget" min="0" step="100" />
+            </div>
+            <div class="form-group">
+              <label>Approval Required Over</label>
+              <input type="number" id="workspaceApprovalAmount" min="0" step="50" />
+            </div>
+          </div>
+          <div class="feature-list">
+            <label class="switch-row"><input type="checkbox" id="workspaceCompletionNotes" /> Require completion notes before closing jobs</label>
+            <label class="switch-row"><input type="checkbox" id="workspaceEmployeeSelfAssign" /> Allow employees to self-assign open jobs</label>
+            <label class="switch-row"><input type="checkbox" id="workspaceDispatchBoard" /> Enable advanced dispatch board workflows</label>
+          </div>
+          <div class="workspace-list" id="workspaceManagerInsights"></div>
         </div>
       </div>
     </div>
 
     <div class="card mt-20">
       <div class="card-header">
-        <h3>Notification Templates</h3>
+        <h3>Premium Features</h3>
       </div>
-      <div class="card-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Job Reminder Template</label>
-            <textarea id="tplJobReminder" rows="3" placeholder="Reminder: {service} for {clientName} on {date} at {time}."></textarea>
+      <div class="card-body feature-grid" id="workspaceFeatureGrid"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-affiliate-portal">
+    <div class="page-header">
+      <h1>Affiliate Portal</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" id="affiliateGenerateCodeBtn"><i class="fas fa-arrows-rotate"></i> Generate Code</button>
+        <button class="btn-primary" id="affiliateCreatePartnerBtn"><i class="fas fa-user-plus"></i> Add Partner</button>
+      </div>
+    </div>
+
+    <div class="stats-grid" id="affiliatePortalStatsGrid"></div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Program Settings</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Program Status</label>
+              <select id="affiliateEnabledSelect">
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Default Commission (%)</label>
+              <input type="number" id="affiliateCommissionPctInput" min="1" max="100" step="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cookie Window (Days)</label>
+              <input type="number" id="affiliateCookieDaysInput" min="1" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Minimum Payout</label>
+              <input type="number" id="affiliateMinPayoutInput" min="0" step="5" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Payout Contact Email</label>
+              <input type="email" id="affiliatePayoutEmailInput" placeholder="finance@company.com" />
+            </div>
+            <div class="form-group">
+              <label>Payout Method</label>
+              <select id="affiliatePayoutMethodSelect">
+                <option value="bank-transfer">Bank Transfer</option>
+                <option value="paypal">PayPal</option>
+                <option value="manual">Manual (offline)</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
-            <label>Schedule Update Template</label>
-            <textarea id="tplScheduleUpdate" rows="3" placeholder="Schedule update: booking #{bookingId} moved to {date} {time}."></textarea>
+            <label>Terms URL</label>
+            <input type="url" id="affiliateTermsUrlInput" placeholder="https://yourdomain.com/affiliate-terms" />
           </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-primary" id="affiliateSaveProgramBtn"><i class="fas fa-floppy-disk"></i> Save Program Settings</button>
+            <button class="btn-secondary" id="affiliateCopySignupLinkBtn"><i class="fas fa-link"></i> Copy Signup Link</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Launch Readiness</h3>
+        </div>
+        <div class="card-body" id="affiliateLaunchChecklist"></div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Affiliate Partners</h3>
+        </div>
+        <div class="card-body" id="affiliatePartnerList"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Payout Queue</h3>
+        </div>
+        <div class="card-body" id="affiliatePayoutQueueList"></div>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>Affiliate Signups & Conversions</h3>
+        </div>
+        <div class="card-body" id="affiliateConversionList"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Quick Actions</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Partner Name</label>
+              <input type="text" id="affiliatePortalPartnerName" placeholder="Jane Partner" />
+            </div>
+            <div class="form-group">
+              <label>Partner Email</label>
+              <input type="email" id="affiliatePortalPartnerEmail" placeholder="partner@creator.com" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="affiliatePortalCreatePartnerBtn"><i class="fas fa-user-plus"></i> Create Partner Account</button>
+            <button class="btn-secondary" id="affiliatePortalLogSaleBtn"><i class="fas fa-coins"></i> Log Conversion</button>
+          </div>
+          <div class="workspace-list" id="affiliatePortalRecentActions"></div>
         </div>
       </div>
     </div>
@@ -584,8 +1244,8 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Service *</label>
-            <input type="text" id="bookingService" placeholder="e.g. Consultation, Session..." required />
+            <label>Service(s) *</label>
+            <input type="text" id="bookingServices" list="serviceSuggestions" placeholder="e.g. Window Cleaning - Exterior, Interior" required />
           </div>
         </div>
         <div class="form-row">
@@ -617,7 +1277,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Sold By</label>
+            <label>Salesperson / Manager</label>
             <select id="bookingSalesman">
               <option value="">Unassigned</option>
             </select>
@@ -702,7 +1362,8 @@
           <div class="form-group">
             <label>Role *</label>
             <select id="employeeRole">
-              <option value="salesman">Salesman</option>
+              <option value="manager">Manager</option>
+              <option value="salesman">Salesperson</option>
               <option value="technician">Technician</option>
             </select>
           </div>
@@ -757,6 +1418,15 @@
             <input type="password" id="employeePassword" placeholder="Set employee password" />
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Employee Join Code</label>
+            <input type="text" id="employeeInviteCode" readonly />
+          </div>
+          <div class="form-group" style="display:flex;align-items:flex-end;">
+            <button class="btn-secondary" id="regenerateEmployeeInviteCodeBtn" type="button"><i class="fas fa-rotate"></i> New Code</button>
+          </div>
+        </div>
         <div class="form-group">
           <label>Available Days</label>
           <div class="day-pills" id="employeeAvailableDays">
@@ -767,6 +1437,18 @@
             <label><input type="checkbox" value="5" checked /> Fri</label>
             <label><input type="checkbox" value="6" /> Sat</label>
             <label><input type="checkbox" value="0" /> Sun</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Manager Permissions</label>
+          <div class="day-pills" id="employeePermissionGrid">
+            <label><input type="checkbox" id="permCreateBookings" /> Create bookings</label>
+            <label><input type="checkbox" id="permEditBookings" /> Edit bookings</label>
+            <label><input type="checkbox" id="permAssignBookings" /> Assign sales and technicians</label>
+            <label><input type="checkbox" id="permManageClients" /> Manage clients</label>
+            <label><input type="checkbox" id="permManageEmployees" /> Manage employees</label>
+            <label><input type="checkbox" id="permViewRevenue" /> View revenue</label>
+            <label><input type="checkbox" id="permViewPayroll" /> View payroll</label>
           </div>
         </div>
         <div class="form-group">
@@ -881,7 +1563,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Service *</label>
-            <input type="text" id="pubService" placeholder="What service are you booking?" required />
+            <input type="text" id="pubService" list="serviceSuggestions" placeholder="What service are you booking?" required />
           </div>
           <div class="form-group">
             <label>Preferred Date *</label>
@@ -916,29 +1598,293 @@
   </div>
 </div>
 
+<!-- TEAM CHAT PAGE -->
+<section class="page" id="page-team-chat">
+  <div class="page-header">
+    <h1 id="teamChatPageTitle">Team Chat</h1>
+    <div class="header-actions">
+      <button id="showChannelManagerBtn" class="btn-primary" style="display:none;"><i class="fas fa-cog"></i> Manage Channels</button>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <!-- Channels List Sidebar -->
+    <div class="chat-sidebar">
+      <div class="channels-header">
+        <h3>Channels</h3>
+        <button id="createChannelBtn" class="btn-icon" style="display:none;" title="Create new channel"><i class="fas fa-plus"></i></button>
+      </div>
+      <div class="channels-list" id="channelsList"></div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-main">
+      <div class="chat-header">
+        <h2 id="chatChannelName">Select a channel</h2>
+        <span id="chatChannelDesc" class="chat-description"></span>
+      </div>
+
+      <div class="messages-area" id="messagesArea"></div>
+
+      <div class="chat-composer">
+        <input type="text" id="chatInput" placeholder="Type a message..." style="display:none;" />
+        <button id="sendChatBtn" class="btn-primary" style="display:none;"><i class="fas fa-paper-plane"></i> Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Channel Manager Modal -->
+  <div class="modal-overlay" id="channelManagerModal">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <h2>Manage Channels</h2>
+        <button class="modal-close" data-modal="channelManagerModal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <button id="addNewChannelBtn" class="btn-primary" style="margin-bottom:16px;"><i class="fas fa-plus"></i> Create New Channel</button>
+        <div id="channelsManageList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Channel Modal -->
+  <div class="modal-overlay" id="createChannelModal">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <h2>Create Channel</h2>
+        <button class="modal-close" data-modal="createChannelModal"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Channel Name *</label>
+          <input type="text" id="newChannelName" placeholder="my-channel" required />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="newChannelDesc" placeholder="What's this channel about?" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="newChannelType">
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+        <button id="saveNewChannelBtn" class="btn-primary"><i class="fas fa-check"></i> Create</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Toast Notification -->
 <div class="toast" id="toast"></div>
 
-<!-- Login Overlay -->
-<div class="modal-overlay open" id="loginOverlay">
-  <div class="modal" style="max-width:460px;">
+<!-- ===== FULL-SCREEN AUTH PAGE ===== -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-panel">
+    <div class="auth-card">
+
+      <!-- Brand -->
+      <div class="auth-brand">
+        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <span class="logo-text">ProCRM</span>
+      </div>
+
+      <!-- LANDING -->
+      <div id="authViewLanding" class="auth-view active">
+        <h1 class="auth-headline">Run your business<br><span class="auth-headline-accent">smarter, not harder.</span></h1>
+        <p class="auth-sub">Clients, bookings, team, revenue — all in one place. Trusted by 1,000+ service businesses.</p>
+
+        <div class="auth-cta-group">
+          <button class="auth-cta-primary" id="authGoSignIn">
+            <i class="fas fa-right-to-bracket"></i>
+            <span>Sign In</span>
+            <i class="fas fa-arrow-right auth-cta-arrow"></i>
+          </button>
+          <button class="auth-cta-secondary" id="authGoCreate">
+            <i class="fas fa-rocket"></i>
+            <span>Get Started Free</span>
+          </button>
+        </div>
+
+        <div class="auth-inline-proof">
+          <div class="auth-inline-stars">
+            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
+            <span>Rated 4.9 by service businesses</span>
+          </div>
+          <p>"We doubled bookings in 60 days with ProCRM." <strong>- Elite Window Care</strong></p>
+        </div>
+
+        <div class="auth-landing-stats">
+          <div class="als-item">
+            <strong>1,000+</strong>
+            <span>Businesses</span>
+          </div>
+          <div class="als-divider"></div>
+          <div class="als-item">
+            <strong>50k+</strong>
+            <span>Jobs Managed</span>
+          </div>
+          <div class="als-divider"></div>
+          <div class="als-item">
+            <strong>4.9★</strong>
+            <span>Avg Rating</span>
+          </div>
+        </div>
+
+        <p class="auth-terms">By continuing, you agree to our <a href="/affiliate-terms" target="_blank">Terms</a> &amp; Privacy Policy.</p>
+      </div>
+
+      <!-- SIGN IN -->
+      <div id="authViewSignIn" class="auth-view">
+        <button class="auth-back-btn" id="authBackFromSignIn"><i class="fas fa-arrow-left"></i> Back</button>
+        <h2 class="auth-title">Welcome back</h2>
+        <p class="auth-subtitle">Sign in to your ProCRM workspace.</p>
+        <div class="auth-form">
+          <div class="auth-field">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email" />
+          </div>
+          <div class="auth-field">
+            <i class="fas fa-lock"></i>
+            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" />
+          </div>
+          <label class="auth-remember">
+            <input type="checkbox" id="loginRemember" />
+            <span>Keep me signed in for 30 days</span>
+          </label>
+          <button class="auth-cta-primary" id="loginBtn">
+            <i class="fas fa-right-to-bracket"></i>
+            <span>Sign In</span>
+            <i class="fas fa-arrow-right auth-cta-arrow"></i>
+          </button>
+          <div class="auth-form-footer">
+            <button class="btn-link" id="forgotPasswordBtn">Forgot password?</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CREATE ACCOUNT -->
+      <div id="authViewCreateChoice" class="auth-view">
+        <button class="auth-back-btn" id="authBackFromCreate"><i class="fas fa-arrow-left"></i> Back</button>
+        <h2 class="auth-title">Get started free</h2>
+        <p class="auth-subtitle">Choose how you're joining ProCRM.</p>
+        <div class="auth-choice-grid">
+          <button class="auth-choice-card" id="authChoiceOwner">
+            <div class="acc-icon"><i class="fas fa-briefcase"></i></div>
+            <div class="acc-text">
+              <strong>Business Owner</strong>
+              <span>Set up your workspace &amp; invite your team</span>
+            </div>
+            <i class="fas fa-chevron-right acc-arrow"></i>
+          </button>
+          <button class="auth-choice-card" id="authChoiceEmployee">
+            <div class="acc-icon acc-icon-green"><i class="fas fa-id-badge"></i></div>
+            <div class="acc-text">
+              <strong>Join as Employee</strong>
+              <span>Enter your invite code to join</span>
+            </div>
+            <i class="fas fa-chevron-right acc-arrow"></i>
+          </button>
+          <button class="auth-choice-card" id="authChoiceAffiliate">
+            <div class="acc-icon acc-icon-purple"><i class="fas fa-handshake-angle"></i></div>
+            <div class="acc-text">
+              <strong>Affiliate Partner</strong>
+              <span>Earn commissions by referring businesses</span>
+            </div>
+            <i class="fas fa-chevron-right acc-arrow"></i>
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /.auth-card -->
+  </div><!-- /.auth-panel -->
+
+</div><!-- /#authScreen -->
+
+<div class="modal-overlay" id="mobileInstallPromptModal">
+  <div class="modal install-choice-modal" style="max-width:560px;">
     <div class="modal-header">
-      <h2>Sign In</h2>
+      <h2>Use ProCRM As An App</h2>
+      <button class="modal-close" data-modal="mobileInstallPromptModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body install-choice-body">
+      <div class="install-choice-hero">
+        <div class="install-choice-icon"><i class="fas fa-mobile-screen-button"></i></div>
+        <div>
+          <strong id="mobileInstallPromptHeadline">Install ProCRM on your phone</strong>
+          <p id="mobileInstallPromptText">Get a faster, full-screen experience with home screen access and offline shell support.</p>
+        </div>
+      </div>
+      <div class="install-choice-grid">
+        <div class="install-choice-card">
+          <h3>Install App</h3>
+          <p>Add ProCRM to your home screen for a more app-like experience and faster return visits.</p>
+          <ul class="install-choice-list">
+            <li>Full-screen launch</li>
+            <li>Home screen icon</li>
+            <li>Better mobile workflow</li>
+          </ul>
+          <button class="btn-primary" id="mobileInstallAppBtn"><i class="fas fa-download"></i> Install App</button>
+        </div>
+        <div class="install-choice-card install-choice-card-secondary">
+          <h3>Continue On Website</h3>
+          <p>Keep using the mobile browser version. You can still install later from Workspace settings.</p>
+          <ul class="install-choice-list muted">
+            <li>No app install required</li>
+            <li>Same features available</li>
+            <li>Good for quick testing</li>
+          </ul>
+          <button class="btn-secondary" id="mobileContinueWebsiteBtn"><i class="fas fa-globe"></i> Continue On Website</button>
+        </div>
+      </div>
+      <p class="install-choice-footnote" id="mobileInstallPromptHint">On iPhone, use Share then Add to Home Screen. On Android Chrome, tap Install when prompted.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="affiliateSignupModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>Affiliate Sign Up</h2>
+      <button class="modal-close" data-modal="affiliateSignupModal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="loginEmail" placeholder="you@company.com" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="affiliateSignupFirstName" placeholder="Jane" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="affiliateSignupLastName" placeholder="Doe" />
+        </div>
       </div>
-      <div class="form-group" style="margin-top:12px;">
-        <label>Password</label>
-        <input type="password" id="loginPassword" placeholder="Enter your password" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="affiliateSignupEmail" placeholder="partner@creator.com" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="affiliateSignupPassword" placeholder="Create password" />
+        </div>
       </div>
-      <button class="btn-link" id="forgotPasswordBtn" type="button" style="margin-top:10px;">Reset Password</button>
-      <p class="subtitle" style="margin-top:12px;">Default admin account: admin@procrm.local / Admin@12345</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Business Affiliate Invite Code (optional)</label>
+          <input type="text" id="affiliateSignupBusinessCode" placeholder="AFF-AB12" />
+        </div>
+        <div class="form-group">
+          <label>Commission Override (%) optional</label>
+          <input type="number" id="affiliateSignupCommission" min="1" max="100" step="1" placeholder="15" />
+        </div>
+      </div>
+      <p class="subtitle">Create your affiliate account and receive your unique promo code for tracked referrals.</p>
     </div>
     <div class="modal-footer">
-      <button class="btn-primary" id="loginBtn"><i class="fas fa-right-to-bracket"></i> Sign In</button>
+      <button class="btn-secondary" data-modal="affiliateSignupModal">Cancel</button>
+      <button class="btn-primary" id="completeAffiliateSignupBtn"><i class="fas fa-check"></i> Create Affiliate Account</button>
     </div>
   </div>
 </div>
@@ -951,6 +1897,16 @@
       <button class="modal-close" data-modal="accountModal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="accountFirstName" placeholder="First name" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="accountLastName" placeholder="Last name" />
+        </div>
+      </div>
       <div class="form-group">
         <label>Current Email</label>
         <input type="email" id="currentAccountEmail" readonly />
@@ -968,10 +1924,234 @@
         <input type="password" id="accountConfirmPassword" placeholder="Confirm new password" />
       </div>
       <button class="btn-secondary" id="resetMyPasswordBtn" type="button" style="margin-top:14px;"><i class="fas fa-key"></i> Reset My Password</button>
+
+      <div class="account-owner-section" id="accountOwnerAffiliateSection">
+        <div class="account-owner-header">
+          <h3>Affiliate Partner Launch</h3>
+          <span class="pill-tag" id="accountAffiliateStatusBadge">Optional</span>
+        </div>
+        <label class="switch-row"><input type="checkbox" id="accountAffiliateSignupEnabled" /> Enable affiliate partner signups</label>
+        <p class="account-owner-note">Keep this off until you are ready to accept affiliate partners. Commission and payout settings stay in Workspace and Affiliate Portal.</p>
+        <div class="form-group" style="margin-top:12px;">
+          <label>Affiliate Signup Link</label>
+          <input type="text" id="accountAffiliateSignupLink" readonly />
+        </div>
+        <div class="workspace-inline-actions" style="margin-top:12px;">
+          <button class="btn-secondary" id="accountCopyAffiliateSignupLinkBtn" type="button"><i class="fas fa-link"></i> Copy Signup Link</button>
+          <button class="btn-link" id="accountOpenAffiliatePortalBtn" type="button">Open Affiliate Settings</button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" data-modal="accountModal">Cancel</button>
       <button class="btn-primary" id="saveAccountBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay onboarding-overlay" id="onboardingOverlay">
+  <div class="modal modal-wide onboarding-modal">
+    <div class="modal-header">
+      <button class="btn-secondary onboarding-header-back" id="onboardingHeaderBackBtn" type="button"><i class="fas fa-arrow-left"></i> Back</button>
+      <h2>Welcome To ProCRM</h2>
+    </div>
+    <div class="modal-body">
+        <p class="subtitle" id="onboardingSubtitle">Tell us if you are creating a business workspace or joining an existing one.</p>
+        <div id="onboardStepChoose" style="margin-top:18px;">
+          <div class="dashboard-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+            <button class="card" id="onboardChooseOwnerBtn" type="button" style="text-align:left;cursor:pointer;">
+              <div class="card-header"><h3>I am a business owner</h3></div>
+              <div class="card-body"><p>Set up a new workspace, configure billing basics, and create the owner account.</p></div>
+            </button>
+            <button class="card" id="onboardChooseJoinBtn" type="button" style="text-align:left;cursor:pointer;">
+              <div class="card-header"><h3>I am joining a business</h3></div>
+              <div class="card-body"><p>Enter your business join code, then create your employee account.</p></div>
+            </button>
+          </div>
+        </div>
+        <div id="onboardStepOwnerAccount" style="display:none;margin-top:18px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Business Email</label>
+              <input type="email" id="onboardBusinessEmail" placeholder="hello@company.com" />
+            </div>
+            <div class="form-group">
+              <label>Owner Name</label>
+              <input type="text" id="onboardPrimaryAdmin" placeholder="Owner or manager name" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Create Password</label>
+              <input type="password" id="onboardOwnerPassword" placeholder="Create a secure password" />
+            </div>
+            <div class="form-group">
+              <label>Confirm Password</label>
+              <input type="password" id="onboardOwnerPasswordConfirm" placeholder="Confirm password" />
+            </div>
+          </div>
+        </div>
+        <div id="onboardStepOwnerBusiness" style="display:none;margin-top:18px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Business Name</label>
+              <input type="text" id="onboardCompanyName" placeholder="Your company name" />
+            </div>
+            <div class="form-group">
+              <label>Business Category</label>
+              <select id="onboardBusinessCategory">
+                <option value="window-cleaning">Window Cleaning</option>
+                <option value="roof-cleaning">Roof Cleaning</option>
+                <option value="pressure-washing">Pressure Washing</option>
+                <option value="landscaping">Landscaping</option>
+                <option value="hvac">HVAC</option>
+                <option value="plumbing">Plumbing</option>
+                <option value="electrical">Electrical</option>
+                <option value="moving">Moving Services</option>
+                <option value="cleaning">General Cleaning</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Custom Category (optional)</label>
+              <input type="text" id="onboardCustomCategory" placeholder="e.g. Solar Panel Cleaning" />
+            </div>
+            <div class="form-group">
+              <label>Number Of Employees</label>
+              <input type="number" id="onboardEmployeeCount" min="1" placeholder="5" />
+            </div>
+          </div>
+        </div>
+        <div id="onboardStepOwnerRevenue" style="display:none;margin-top:18px;">
+          <div class="form-group">
+            <label>Monthly Target Revenue</label>
+            <input type="number" id="onboardMonthlyRevenue" min="0" step="100" placeholder="25000" />
+          </div>
+          <p class="subtitle">Set your monthly goal so dashboards and progress metrics can track target performance.</p>
+        </div>
+        <div id="onboardStepOwnerPlan" style="display:none;margin-top:18px;">
+          <div class="form-group">
+            <label>Billing Cycle</label>
+            <select id="onboardBillingCycle">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly (Save 30%)</option>
+            </select>
+          </div>
+          <div class="plan-grid" id="onboardPlanGrid" style="margin-top:12px;">
+            <button class="plan-card" id="onboardPlanStarter" type="button" data-plan="starter">
+              <span class="plan-name">Starter</span>
+              <span class="plan-price">$49<span style="font-size:12px;">/mo</span></span>
+              <span class="plan-copy">Great for solo owners and early growth.</span>
+            </button>
+            <button class="plan-card featured" id="onboardPlanProfessional" type="button" data-plan="professional">
+              <span class="plan-name">Professional</span>
+              <span class="plan-price">$129<span style="font-size:12px;">/mo</span></span>
+              <span class="plan-copy">Best for scaling teams and dispatch workflows.</span>
+            </button>
+            <button class="plan-card" id="onboardPlanPremium" type="button" data-plan="premium">
+              <span class="plan-name">Premium</span>
+              <span class="plan-price">$249<span style="font-size:12px;">/mo</span></span>
+              <span class="plan-copy">Advanced operations, analytics, and enterprise controls.</span>
+            </button>
+          </div>
+          <div class="workspace-list-item" style="margin-top:14px;">
+            <div>
+              <strong>3-day free trial included</strong>
+              <span>Start now. You won't be charged until your 3-day trial ends.</span>
+            </div>
+            <span class="pill-tag success">3 DAY FREE TRIAL</span>
+          </div>
+        </div>
+        <div id="onboardStepJoinCode" style="display:none;margin-top:18px;">
+          <div class="form-group">
+            <label>Business Join Code</label>
+            <input type="text" id="onboardJoinCode" placeholder="BUS-AB12" />
+          </div>
+          <div class="form-group">
+            <label>Matched Workspace</label>
+            <input type="text" id="onboardJoinBusinessName" placeholder="Company name will appear after validation" readonly />
+          </div>
+        </div>
+        <div id="onboardStepJoinAccount" style="display:none;margin-top:18px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label>First Name</label>
+              <input type="text" id="onboardJoinFirstName" placeholder="Jane" />
+            </div>
+            <div class="form-group">
+              <label>Last Name</label>
+              <input type="text" id="onboardJoinLastName" placeholder="Doe" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" id="onboardJoinEmail" placeholder="employee@company.com" />
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select id="onboardJoinRole">
+                <option value="technician">Technician</option>
+                <option value="salesman">Salesperson</option>
+                <option value="manager">Manager</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Password</label>
+              <input type="password" id="onboardJoinPassword" placeholder="Create your password" />
+            </div>
+            <div class="form-group">
+              <label>Confirm Password</label>
+              <input type="password" id="onboardJoinPasswordConfirm" placeholder="Confirm password" />
+            </div>
+          </div>
+        </div>
+    </div>
+      <div class="modal-footer" id="onboardingFooterChoose">
+        <button class="btn-secondary" id="onboardingResetBtn" type="button">Reset</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterOwnerAccount" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerAccountBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardOwnerAccountNextBtn" type="button">Continue</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterOwnerBusiness" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerBusinessBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardOwnerBusinessNextBtn" type="button">Continue</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterOwnerRevenue" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerRevenueBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardOwnerRevenueNextBtn" type="button">Continue</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterOwnerPlan" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerPlanBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="completeOwnerOnboardingBtn" type="button"><i class="fas fa-rocket"></i> Start 3-Day Trial</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterJoinCode" style="display:none;">
+        <button class="btn-secondary" id="onboardJoinCodeBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardValidateJoinCodeBtn" type="button">Validate Code</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterJoinAccount" style="display:none;">
+        <button class="btn-secondary" id="onboardJoinAccountBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="completeJoinOnboardingBtn" type="button"><i class="fas fa-user-plus"></i> Create Employee Account</button>
+      </div>
+  </div>
+</div>
+
+<datalist id="serviceSuggestions"></datalist>
+
+<!-- Upgrade Prompt Modal -->
+<div class="modal-overlay" id="upgradePromptModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <h3>Upgrade Your Plan</h3>
+      <button class="modal-close" data-modal="upgradePromptModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div id="upgradePrompt"></div>
     </div>
   </div>
 </div>
@@ -982,7 +2162,6 @@
   <button class="quick-item" id="qAddEmployee"><i class="fas fa-user-gear"></i> New Employee</button>
   <button class="quick-item" id="qAddBooking"><i class="fas fa-calendar-plus"></i> New Booking</button>
   <button class="quick-item" id="qAddPayment"><i class="fas fa-dollar-sign"></i> Record Payment</button>
-  <button class="quick-item" id="qSendReminders"><i class="fas fa-message"></i> Send Reminder Texts</button>
   <button class="quick-item" id="qPublicBook"><i class="fas fa-link"></i> Client Booking Form</button>
 </div>
 
