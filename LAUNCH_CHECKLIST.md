@@ -1,4 +1,6 @@
-# ProCRM Launch Checklist
+# Service Mafia Launch Checklist
+
+> Legacy checklist note: parts of this document are outdated (branding, pricing discount values, and older feature references). For current go/no-go status and validated test evidence, see `RELEASE_READINESS.md`.
 
 ## Features Implemented ✅
 

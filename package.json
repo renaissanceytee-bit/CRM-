@@ -1,18 +1,20 @@
 {
-  "name": "procrm-local",
+  "name": "service-mafia",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "start:phone": "bash scripts/start-phone-test.sh",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^8.0.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1"

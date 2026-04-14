@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0f1117" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="ProCRM" />
-  <title>ProCRM — Premium Business CRM</title>
+  <meta name="apple-mobile-web-app-title" content="Service Mafia" />
+  <title>Service Mafia — Premium Business CRM</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -20,7 +20,7 @@
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <div class="logo-icon"><i class="fas fa-bolt"></i></div>
-    <span class="logo-text">ProCRM</span>
+    <span class="logo-text">Service Mafia</span>
   </div>
   <nav class="sidebar-nav">
     <a href="#" class="nav-item active" data-page="dashboard">
@@ -47,19 +47,20 @@
     <a href="#" class="nav-item" data-page="owner-portal">
       <i class="fas fa-briefcase"></i><span>Owner Portal</span>
     </a>
+    <a href="#" class="nav-item" data-page="owner-revenue">
+      <i class="fas fa-chart-column"></i><span>Revenue Forecast</span>
+    </a>
     <a href="#" class="nav-item" data-page="affiliate-portal">
       <i class="fas fa-handshake-angle"></i><span>Affiliate Portal</span>
+    </a>
+    <a href="#" class="nav-item" data-page="team-chat">
+      <i class="fas fa-comments"></i><span>Team Chat</span>
     </a>
     <a href="#" class="nav-item" data-page="my-portal">
       <i class="fas fa-id-badge"></i><span>My Portal</span>
     </a>
-
-    <a href="#" class="nav-item" data-page="team-chat">
-      <i class="fas fa-comments"></i><span>Team Chat</span>
-    </a>
-
     <a href="#" class="nav-item" data-page="workspace">
-      <i class="fas fa-layer-group"></i><span>Workspace</span>
+      <i class="fas fa-layer-group"></i><span>Settings</span>
     </a>
   </nav>
   <div class="sidebar-footer">
@@ -555,6 +556,24 @@
     </div>
   </section>
 
+  <section class="page" id="page-owner-revenue">
+    <div class="page-header">
+      <h1>Revenue Forecast</h1>
+      <div class="header-controls">
+        <button class="btn-secondary" data-page="revenue"><i class="fas fa-table"></i> Open Revenue Table</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Monthly Development &amp; Estimated Revenue</h3>
+      </div>
+      <div class="card-body">
+        <div class="owner-revenue-summary" id="ownerRevenueSummary"></div>
+        <div class="owner-revenue-chart" id="ownerRevenueChart"></div>
+      </div>
+    </div>
+  </section>
+
   <section class="page" id="page-my-portal">
     <div class="page-header">
       <h1>My Portal</h1>
@@ -699,7 +718,7 @@
 
     <section class="page" id="page-workspace">
       <div class="page-header">
-        <h1>Workspace</h1>
+        <h1>Settings</h1>
         <div class="header-controls">
           <button class="btn-primary" id="saveWorkspaceBtn"><i class="fas fa-floppy-disk"></i> Save Settings</button>
         </div>
@@ -737,11 +756,48 @@
               <input type="email" id="workspaceBusinessEmail" placeholder="hello@company.com" />
             </div>
             <div class="form-group">
-              <label>Billing Cycle</label>
-              <select id="workspaceBillingCycle">
-                <option value="monthly">Monthly</option>
-                <option value="yearly">Yearly (Save 30%)</option>
+              <label>Subscription Status</label>
+              <select id="workspaceSubscriptionStatus">
+                <option value="trialing">Trialing</option>
+                <option value="active">Active</option>
+                <option value="past_due">Past Due</option>
+                <option value="canceled">Canceled</option>
               </select>
+            </div>
+          </div>
+          <div class="card mt-20">
+            <div class="card-header">
+              <h3>Business Email Verification</h3>
+            </div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Current Email</label>
+                  <input type="email" id="workspaceCurrentEmailVerificationTarget" placeholder="current@email.com" />
+                </div>
+                <div class="form-group">
+                  <label>Current Email Code</label>
+                  <input type="text" id="workspaceOldEmailVerificationCode" maxlength="6" placeholder="6-digit code" />
+                </div>
+              </div>
+              <div class="workspace-inline-actions compact">
+                <button class="btn-secondary" type="button" id="workspaceSendOldEmailCodeBtn"><i class="fas fa-envelope"></i> Send Code To Current Email</button>
+                <button class="btn-primary" type="button" id="workspaceVerifyOldEmailCodeBtn"><i class="fas fa-check"></i> Verify Current Email</button>
+              </div>
+              <div class="form-row" style="margin-top:12px;">
+                <div class="form-group">
+                  <label>New Email</label>
+                  <input type="email" id="workspaceNewEmailVerificationTarget" placeholder="new@email.com" />
+                </div>
+                <div class="form-group">
+                  <label>New Email Code</label>
+                  <input type="text" id="workspaceNewEmailVerificationCode" maxlength="6" placeholder="6-digit code" />
+                </div>
+              </div>
+              <div class="workspace-inline-actions compact">
+                <button class="btn-secondary" type="button" id="workspaceSendNewEmailCodeBtn"><i class="fas fa-envelope"></i> Send Code To New Email</button>
+                <button class="btn-primary" type="button" id="workspaceVerifyNewEmailCodeBtn"><i class="fas fa-check"></i> Verify New Email</button>
+              </div>
             </div>
           </div>
           <div class="form-row">
@@ -773,25 +829,36 @@
         <div class="card-header">
           <h3>Subscription Plans</h3>
         </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group" style="max-width:280px;">
+              <label>Billing Cycle</label>
+              <select id="workspaceBillingCycle">
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly (Save 40%)</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <div class="card-body plan-grid">
           <button class="plan-card" data-plan="free" id="planFree">
             <span class="plan-name">Free</span>
-            <span class="plan-price">$0/mo</span>
+            <span class="plan-price" id="planFreePrice">$0/mo</span>
             <span class="plan-copy">One user, basic CRM, public booking form, and simple reminders.</span>
           </button>
           <button class="plan-card" data-plan="starter" id="planStarter">
-            <span class="plan-name">Budget</span>
-            <span class="plan-price">$20/mo</span>
+            <span class="plan-name">Starter</span>
+            <span class="plan-price" id="planStarterPrice">$20/mo</span>
             <span class="plan-copy">Team access for up to 3 employees with payroll and basic controls.</span>
           </button>
           <button class="plan-card" data-plan="professional" id="planProfessional">
-            <span class="plan-name">Growth</span>
-            <span class="plan-price">$50/mo</span>
+            <span class="plan-name">Professional</span>
+            <span class="plan-price" id="planProfessionalPrice">$50/mo</span>
             <span class="plan-copy">Advanced scheduling, reporting, multiple services per booking, up to 10 employees.</span>
           </button>
           <button class="plan-card featured" data-plan="premium" id="planPremium">
-            <span class="plan-name">Unlimited</span>
-            <span class="plan-price">$100/mo</span>
+            <span class="plan-name">Premium</span>
+            <span class="plan-price" id="planPremiumPrice">$100/mo</span>
             <span class="plan-copy">Unlimited employees, dispatch automation, advanced management tools.</span>
           </button>
         </div>
@@ -981,6 +1048,66 @@
     <div class="dashboard-grid workspace-grid mt-20">
       <div class="card">
         <div class="card-header">
+          <h3>Advanced Team Roles</h3>
+        </div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Manager Role Name</label>
+              <input type="text" id="roleManagerLabel" placeholder="Manager" />
+            </div>
+            <div class="form-group">
+              <label>Sales Role Name</label>
+              <input type="text" id="roleSalesmanLabel" placeholder="Salesperson" />
+            </div>
+            <div class="form-group">
+              <label>Technician Role Name</label>
+              <input type="text" id="roleTechnicianLabel" placeholder="Technician" />
+            </div>
+          </div>
+
+          <label>Manager Permissions</label>
+          <div class="day-pills" style="margin-bottom:12px;">
+            <label><input type="checkbox" id="roleManagerCreateBookings" /> Create bookings</label>
+            <label><input type="checkbox" id="roleManagerEditBookings" /> Edit bookings</label>
+            <label><input type="checkbox" id="roleManagerAssignBookings" /> Assign bookings</label>
+            <label><input type="checkbox" id="roleManagerManageClients" /> Manage clients</label>
+            <label><input type="checkbox" id="roleManagerManageEmployees" /> Manage employees</label>
+            <label><input type="checkbox" id="roleManagerViewRevenue" /> View revenue</label>
+            <label><input type="checkbox" id="roleManagerViewPayroll" /> View payroll</label>
+          </div>
+
+          <label>Sales Permissions</label>
+          <div class="day-pills" style="margin-bottom:12px;">
+            <label><input type="checkbox" id="roleSalesmanCreateBookings" /> Create bookings</label>
+            <label><input type="checkbox" id="roleSalesmanEditBookings" /> Edit bookings</label>
+            <label><input type="checkbox" id="roleSalesmanAssignBookings" /> Assign bookings</label>
+            <label><input type="checkbox" id="roleSalesmanManageClients" /> Manage clients</label>
+            <label><input type="checkbox" id="roleSalesmanManageEmployees" /> Manage employees</label>
+            <label><input type="checkbox" id="roleSalesmanViewRevenue" /> View revenue</label>
+            <label><input type="checkbox" id="roleSalesmanViewPayroll" /> View payroll</label>
+          </div>
+
+          <label>Technician Permissions</label>
+          <div class="day-pills" style="margin-bottom:12px;">
+            <label><input type="checkbox" id="roleTechnicianCreateBookings" /> Create bookings</label>
+            <label><input type="checkbox" id="roleTechnicianEditBookings" /> Edit bookings</label>
+            <label><input type="checkbox" id="roleTechnicianAssignBookings" /> Assign bookings</label>
+            <label><input type="checkbox" id="roleTechnicianManageClients" /> Manage clients</label>
+            <label><input type="checkbox" id="roleTechnicianManageEmployees" /> Manage employees</label>
+            <label><input type="checkbox" id="roleTechnicianViewRevenue" /> View revenue</label>
+            <label><input type="checkbox" id="roleTechnicianViewPayroll" /> View payroll</label>
+          </div>
+
+          <div class="form-group">
+            <label>Manager Booking Questions (one per line)</label>
+            <textarea id="managerBookingQuestions" rows="4" placeholder="What type of service do you need?&#10;How large is the property?&#10;Any access instructions?"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
           <h3>Invite Rewards</h3>
         </div>
         <div class="card-body">
@@ -1093,11 +1220,16 @@
             <div class="form-group">
               <label>Payout Method</label>
               <select id="affiliatePayoutMethodSelect">
+                <option value="venmo">Venmo</option>
                 <option value="bank-transfer">Bank Transfer</option>
                 <option value="paypal">PayPal</option>
                 <option value="manual">Manual (offline)</option>
               </select>
             </div>
+          </div>
+          <div class="form-group">
+            <label>Venmo Handle</label>
+            <input type="text" id="affiliateVenmoHandleInput" placeholder="@yourbusiness" />
           </div>
           <div class="form-group">
             <label>Terms URL</label>
@@ -1165,7 +1297,70 @@
     </div>
   </section>
 
+  <!-- TEAM CHAT -->
+  <section class="page" id="page-team-chat">
+    <div class="page-header">
+      <h1>Team Chat</h1>
+      <div class="header-controls" id="chatAdminControls" style="display:none;">
+        <button class="btn-primary" id="createChannelBtn"><i class="fas fa-plus"></i> New Channel</button>
+      </div>
+    </div>
+    <div class="chat-container">
+      <aside class="chat-sidebar">
+        <div class="chat-sidebar-header">
+          <span>Channels</span>
+        </div>
+        <div class="channels-list" id="channelsList"></div>
+      </aside>
+      <div class="chat-main">
+        <div class="chat-main-header" id="chatMainHeader">
+          <span id="chatChannelName">Select a channel</span>
+          <span id="chatChannelDesc" class="chat-channel-desc"></span>
+          <button class="btn-icon btn-danger-icon" id="deleteChannelBtn" style="display:none;" title="Delete channel"><i class="fas fa-trash"></i></button>
+        </div>
+        <div class="messages-area" id="messagesArea">
+          <div class="empty-state"><i class="fas fa-comments"></i><p>Select a channel to start chatting</p></div>
+        </div>
+        <div class="chat-composer" id="chatComposer" style="display:none;">
+          <input type="text" id="chatInput" placeholder="Send a message..." autocomplete="off" />
+          <button class="btn-primary" id="sendChatBtn"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
+
+<!-- Create Channel Modal -->
+<div class="modal-overlay" id="createChannelModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>New Channel</h3>
+      <button class="modal-close" data-modal="createChannelModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Channel Name <span class="required">*</span></label>
+        <input type="text" id="newChannelName" placeholder="e.g. general" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="newChannelDesc" placeholder="What is this channel for?" />
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="newChannelType">
+          <option value="public">Public (visible to all)</option>
+          <option value="private">Private (invite only)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal="createChannelModal">Cancel</button>
+      <button class="btn-primary" id="saveChannelBtn"><i class="fas fa-plus"></i> Create Channel</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODALS -->
 
@@ -1589,6 +1784,7 @@
           <label>Additional Notes</label>
           <textarea id="pubNotes" placeholder="Any special requests or information..." rows="3"></textarea>
         </div>
+        <div id="publicBookingCustomQuestions"></div>
       </form>
     </div>
     <div class="modal-footer">
@@ -1597,84 +1793,6 @@
     </div>
   </div>
 </div>
-
-<!-- TEAM CHAT PAGE -->
-<section class="page" id="page-team-chat">
-  <div class="page-header">
-    <h1 id="teamChatPageTitle">Team Chat</h1>
-    <div class="header-actions">
-      <button id="showChannelManagerBtn" class="btn-primary" style="display:none;"><i class="fas fa-cog"></i> Manage Channels</button>
-    </div>
-  </div>
-
-  <div class="chat-container">
-    <!-- Channels List Sidebar -->
-    <div class="chat-sidebar">
-      <div class="channels-header">
-        <h3>Channels</h3>
-        <button id="createChannelBtn" class="btn-icon" style="display:none;" title="Create new channel"><i class="fas fa-plus"></i></button>
-      </div>
-      <div class="channels-list" id="channelsList"></div>
-    </div>
-
-    <!-- Chat Area -->
-    <div class="chat-main">
-      <div class="chat-header">
-        <h2 id="chatChannelName">Select a channel</h2>
-        <span id="chatChannelDesc" class="chat-description"></span>
-      </div>
-
-      <div class="messages-area" id="messagesArea"></div>
-
-      <div class="chat-composer">
-        <input type="text" id="chatInput" placeholder="Type a message..." style="display:none;" />
-        <button id="sendChatBtn" class="btn-primary" style="display:none;"><i class="fas fa-paper-plane"></i> Send</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Channel Manager Modal -->
-  <div class="modal-overlay" id="channelManagerModal">
-    <div class="modal" style="max-width:600px;">
-      <div class="modal-header">
-        <h2>Manage Channels</h2>
-        <button class="modal-close" data-modal="channelManagerModal"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <button id="addNewChannelBtn" class="btn-primary" style="margin-bottom:16px;"><i class="fas fa-plus"></i> Create New Channel</button>
-        <div id="channelsManageList"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Create Channel Modal -->
-  <div class="modal-overlay" id="createChannelModal">
-    <div class="modal" style="max-width:480px;">
-      <div class="modal-header">
-        <h2>Create Channel</h2>
-        <button class="modal-close" data-modal="createChannelModal"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Channel Name *</label>
-          <input type="text" id="newChannelName" placeholder="my-channel" required />
-        </div>
-        <div class="form-group">
-          <label>Description</label>
-          <textarea id="newChannelDesc" placeholder="What's this channel about?" rows="3"></textarea>
-        </div>
-        <div class="form-group">
-          <label>Type</label>
-          <select id="newChannelType">
-            <option value="public">Public</option>
-            <option value="private">Private</option>
-          </select>
-        </div>
-        <button id="saveNewChannelBtn" class="btn-primary"><i class="fas fa-check"></i> Create</button>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- Toast Notification -->
 <div class="toast" id="toast"></div>
@@ -1687,7 +1805,7 @@
       <!-- Brand -->
       <div class="auth-brand">
         <div class="logo-icon"><i class="fas fa-bolt"></i></div>
-        <span class="logo-text">ProCRM</span>
+        <span class="logo-text">Service Mafia</span>
       </div>
 
       <!-- LANDING -->
@@ -1707,31 +1825,6 @@
           </button>
         </div>
 
-        <div class="auth-inline-proof">
-          <div class="auth-inline-stars">
-            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-            <span>Rated 4.9 by service businesses</span>
-          </div>
-          <p>"We doubled bookings in 60 days with ProCRM." <strong>- Elite Window Care</strong></p>
-        </div>
-
-        <div class="auth-landing-stats">
-          <div class="als-item">
-            <strong>1,000+</strong>
-            <span>Businesses</span>
-          </div>
-          <div class="als-divider"></div>
-          <div class="als-item">
-            <strong>50k+</strong>
-            <span>Jobs Managed</span>
-          </div>
-          <div class="als-divider"></div>
-          <div class="als-item">
-            <strong>4.9★</strong>
-            <span>Avg Rating</span>
-          </div>
-        </div>
-
         <p class="auth-terms">By continuing, you agree to our <a href="/affiliate-terms" target="_blank">Terms</a> &amp; Privacy Policy.</p>
       </div>
 
@@ -1739,15 +1832,15 @@
       <div id="authViewSignIn" class="auth-view">
         <button class="auth-back-btn" id="authBackFromSignIn"><i class="fas fa-arrow-left"></i> Back</button>
         <h2 class="auth-title">Welcome back</h2>
-        <p class="auth-subtitle">Sign in to your ProCRM workspace.</p>
+        <p class="auth-subtitle">Sign in to your Service Mafia workspace.</p>
         <div class="auth-form">
           <div class="auth-field">
             <i class="fas fa-envelope"></i>
-            <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email" />
+            <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email" required />
           </div>
           <div class="auth-field">
             <i class="fas fa-lock"></i>
-            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" />
+            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required />
           </div>
           <label class="auth-remember">
             <input type="checkbox" id="loginRemember" />
@@ -1761,6 +1854,13 @@
           <div class="auth-form-footer">
             <button class="btn-link" id="forgotPasswordBtn">Forgot password?</button>
           </div>
+          <p class="auth-reset-help">Enter your email, tap Forgot password, then sign in with the temporary password we generate for you.</p>
+          <div class="auth-social-proof" id="authReviewStack">
+            <div class="auth-social-proof-title"><i class="fas fa-star"></i> 4.9 / 5 across 1,000+ businesses</div>
+            <div class="auth-review-item"><strong>Sarah M.</strong> Window Cleaning Co. <span>“Service Mafia cut our admin time in half.”</span></div>
+            <div class="auth-review-item"><strong>Mike L.</strong> Home Services <span>“Best investment for our team. Client follow-ups are now automatic.”</span></div>
+            <div class="auth-review-item"><strong>Jessica T.</strong> Cleaning Business <span>“Simple, powerful, and actually affordable.”</span></div>
+          </div>
         </div>
       </div>
 
@@ -1768,7 +1868,7 @@
       <div id="authViewCreateChoice" class="auth-view">
         <button class="auth-back-btn" id="authBackFromCreate"><i class="fas fa-arrow-left"></i> Back</button>
         <h2 class="auth-title">Get started free</h2>
-        <p class="auth-subtitle">Choose how you're joining ProCRM.</p>
+        <p class="auth-subtitle">Choose how you're joining Service Mafia.</p>
         <div class="auth-choice-grid">
           <button class="auth-choice-card" id="authChoiceOwner">
             <div class="acc-icon"><i class="fas fa-briefcase"></i></div>
@@ -1805,21 +1905,21 @@
 <div class="modal-overlay" id="mobileInstallPromptModal">
   <div class="modal install-choice-modal" style="max-width:560px;">
     <div class="modal-header">
-      <h2>Use ProCRM As An App</h2>
+      <h2>Use Service Mafia As An App</h2>
       <button class="modal-close" data-modal="mobileInstallPromptModal"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body install-choice-body">
       <div class="install-choice-hero">
         <div class="install-choice-icon"><i class="fas fa-mobile-screen-button"></i></div>
         <div>
-          <strong id="mobileInstallPromptHeadline">Install ProCRM on your phone</strong>
+          <strong id="mobileInstallPromptHeadline">Install Service Mafia on your phone</strong>
           <p id="mobileInstallPromptText">Get a faster, full-screen experience with home screen access and offline shell support.</p>
         </div>
       </div>
       <div class="install-choice-grid">
         <div class="install-choice-card">
           <h3>Install App</h3>
-          <p>Add ProCRM to your home screen for a more app-like experience and faster return visits.</p>
+          <p>Add Service Mafia to your home screen for a more app-like experience and faster return visits.</p>
           <ul class="install-choice-list">
             <li>Full-screen launch</li>
             <li>Home screen icon</li>
@@ -1863,11 +1963,21 @@
       <div class="form-row">
         <div class="form-group">
           <label>Email</label>
-          <input type="email" id="affiliateSignupEmail" placeholder="partner@creator.com" />
+          <input type="email" id="affiliateSignupEmail" placeholder="partner@creator.com" required />
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" id="affiliateSignupPassword" placeholder="Create password" />
+          <input type="password" id="affiliateSignupPassword" placeholder="Create password" required />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email Verification Code</label>
+          <input type="text" id="affiliateSignupVerificationCode" placeholder="6-digit code" maxlength="6" />
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;">
+          <button class="btn-secondary" id="affiliateSendVerificationBtn" type="button">Send Code</button>
+          <button class="btn-primary" id="affiliateVerifyCodeBtn" type="button">Verify</button>
         </div>
       </div>
       <div class="form-row">
@@ -1953,7 +2063,7 @@
   <div class="modal modal-wide onboarding-modal">
     <div class="modal-header">
       <button class="btn-secondary onboarding-header-back" id="onboardingHeaderBackBtn" type="button"><i class="fas fa-arrow-left"></i> Back</button>
-      <h2>Welcome To ProCRM</h2>
+      <h2>Welcome To Service Mafia</h2>
     </div>
     <div class="modal-body">
         <p class="subtitle" id="onboardingSubtitle">Tell us if you are creating a business workspace or joining an existing one.</p>
@@ -1989,6 +2099,20 @@
               <label>Confirm Password</label>
               <input type="password" id="onboardOwnerPasswordConfirm" placeholder="Confirm password" />
             </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Affiliate Promo Code (optional)</label>
+              <input type="text" id="onboardAffiliatePromoCode" placeholder="AFF-1234" />
+            </div>
+            <div class="form-group">
+              <label>Email Verification Code</label>
+              <input type="text" id="onboardOwnerVerificationCode" placeholder="6-digit code" maxlength="6" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-secondary" id="onboardOwnerSendVerificationBtn" type="button"><i class="fas fa-envelope"></i> Send Verification Code</button>
+            <button class="btn-primary" id="onboardOwnerVerifyCodeBtn" type="button"><i class="fas fa-check"></i> Verify Email</button>
           </div>
         </div>
         <div id="onboardStepOwnerBusiness" style="display:none;margin-top:18px;">
@@ -2036,24 +2160,24 @@
             <label>Billing Cycle</label>
             <select id="onboardBillingCycle">
               <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly (Save 30%)</option>
+              <option value="yearly">Yearly (Save 40%)</option>
             </select>
           </div>
           <div class="plan-grid" id="onboardPlanGrid" style="margin-top:12px;">
             <button class="plan-card" id="onboardPlanStarter" type="button" data-plan="starter">
               <span class="plan-name">Starter</span>
-              <span class="plan-price">$49<span style="font-size:12px;">/mo</span></span>
-              <span class="plan-copy">Great for solo owners and early growth.</span>
+              <span class="plan-price" id="onboardPlanStarterPrice">$20/mo</span>
+              <span class="plan-copy">Perfect for teams up to 3 employees.</span>
             </button>
             <button class="plan-card featured" id="onboardPlanProfessional" type="button" data-plan="professional">
               <span class="plan-name">Professional</span>
-              <span class="plan-price">$129<span style="font-size:12px;">/mo</span></span>
-              <span class="plan-copy">Best for scaling teams and dispatch workflows.</span>
+              <span class="plan-price" id="onboardPlanProfessionalPrice">$50/mo</span>
+              <span class="plan-copy">Best for teams up to 10 employees.</span>
             </button>
             <button class="plan-card" id="onboardPlanPremium" type="button" data-plan="premium">
               <span class="plan-name">Premium</span>
-              <span class="plan-price">$249<span style="font-size:12px;">/mo</span></span>
-              <span class="plan-copy">Advanced operations, analytics, and enterprise controls.</span>
+              <span class="plan-price" id="onboardPlanPremiumPrice">$100/mo</span>
+              <span class="plan-copy">Unlimited employees and full enterprise controls.</span>
             </button>
           </div>
           <div class="workspace-list-item" style="margin-top:14px;">
@@ -2107,6 +2231,16 @@
             <div class="form-group">
               <label>Confirm Password</label>
               <input type="password" id="onboardJoinPasswordConfirm" placeholder="Confirm password" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email Verification Code</label>
+              <input type="text" id="onboardJoinVerificationCode" placeholder="6-digit code" maxlength="6" />
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;">
+              <button class="btn-secondary" id="onboardJoinSendVerificationBtn" type="button">Send Code</button>
+              <button class="btn-primary" id="onboardJoinVerifyCodeBtn" type="button">Verify</button>
             </div>
           </div>
         </div>

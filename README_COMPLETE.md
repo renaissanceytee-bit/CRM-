@@ -1,4 +1,4 @@
-# ProCRM - Business Management Platform
+# Service Mafia - Business Management Platform
 
 A complete, feature-rich CRM and business operations platform for service-based businesses.
 
@@ -170,4 +170,4 @@ See server.js for complete endpoint documentation.
 
 ## 📄 License
 
-ProCRM - All rights reserved
+Service Mafia - All rights reserved

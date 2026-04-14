@@ -1,4 +1,4 @@
-const CACHE_NAME = 'procrm-v2';
+const CACHE_NAME = 'service-mafia-v1';
 const APP_SHELL = [
   '/',
   'index.html',

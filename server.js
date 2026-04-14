@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -31,9 +32,33 @@ const JWT_SECRET = process.env.JWT_SECRET || 'procrm-dev-secret';
 const APP_BASE_URL = process.env.APP_BASE_URL || `http://localhost:${PORT}`;
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@yourdomain.com';
 const SMTP_FROM = process.env.SMTP_FROM || '';
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 
-const dataDir = path.join(__dirname, 'data');
+const emailTransporter = (SMTP_HOST && SMTP_FROM)
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined
+    })
+  : null;
+
+const verificationStore = new Map();
+
+function isConfiguredValue(value, { placeholders = [], disallowLocalhost = false } = {}) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return false;
+  const lower = normalized.toLowerCase();
+  if (placeholders.some(entry => lower === String(entry).toLowerCase())) return false;
+  if (disallowLocalhost && (lower.includes('localhost') || lower.includes('127.0.0.1') || lower.includes('yourdomain.com'))) return false;
+  return true;
+}
+
+const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(dataDir, { recursive: true });
 
 const db = new DatabaseSync(path.join(dataDir, 'procrm.sqlite'));
@@ -90,7 +115,8 @@ const workspaceDefaults = {
     affiliateCookieDays: 30,
     affiliateMinPayout: 50,
     affiliatePayoutEmail: SUPPORT_EMAIL,
-    affiliatePayoutMethod: 'bank-transfer',
+    affiliatePayoutMethod: 'venmo',
+    affiliateVenmoHandle: '',
     affiliateTermsUrl: `${APP_BASE_URL}/affiliate-terms`,
     inviteDiscountPct: 10,
     inviteFreeMonths: 1,
@@ -195,23 +221,81 @@ function seedDefaults() {
   if (!workspaceRow) {
     db.prepare('INSERT INTO workspace (id, json, updated_at) VALUES (1, ?, ?)').run(JSON.stringify(workspaceDefaults), new Date().toISOString());
   }
+  const normalizedWorkspace = getWorkspace();
+  if (!workspaceRow || JSON.stringify(normalizedWorkspace) !== workspaceRow.json) {
+    saveWorkspace(normalizedWorkspace);
+  }
 
-  const channelCount = db.prepare('SELECT COUNT(*) AS count FROM channels').get().count;
-  if (!channelCount) {
+  const sampleEmployee = db.prepare('SELECT id FROM users WHERE email = ?').get('employee.test@fieldflowcrm.local');
+  if (!sampleEmployee) {
     const now = new Date().toISOString();
+    const legacyEmployeeId = 9001;
     db.prepare(`
-      INSERT INTO channels (name, description, channel_type, owner_id, created_at, updated_at)
-      VALUES (?, ?, 'public', 1, ?, ?)
-    `).run('general', 'General team discussion', now, now);
+      INSERT INTO employees (legacy_id, first_name, last_name, email, phone, role, status, created_at)
+      VALUES (?, ?, ?, ?, '', ?, 'active', ?)
+      ON CONFLICT(legacy_id) DO UPDATE SET
+        first_name = excluded.first_name,
+        last_name = excluded.last_name,
+        email = excluded.email,
+        role = excluded.role,
+        status = excluded.status
+    `).run(legacyEmployeeId, 'Test', 'Employee', 'employee.test@fieldflowcrm.local', 'technician', now);
+
     db.prepare(`
-      INSERT INTO channels (name, description, channel_type, owner_id, created_at, updated_at)
-      VALUES (?, ?, 'public', 1, ?, ?)
-    `).run('announcements', 'Important announcements and updates', now, now);
+      INSERT INTO users (email, password_hash, role, employee_id, status, name, created_at)
+      VALUES (?, ?, 'technician', ?, 'active', ?, ?)
+    `).run('employee.test@fieldflowcrm.local', legacyHash('Employee@12345'), legacyEmployeeId, 'Test Employee', now);
   }
 }
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(String(email || ''));
+}
+
+function verificationKey(email, purpose) {
+  return `${String(purpose || 'signup').toLowerCase()}:${normalizeEmail(email)}`;
+}
+
+function createVerificationCode() {
+  return String(Math.floor(100000 + (Math.random() * 900000)));
+}
+
+async function sendVerificationEmail(email, code) {
+  if (!emailTransporter) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Email delivery is not configured. Set SMTP_HOST and SMTP_FROM.');
+    }
+    return false;
+  }
+
+  await emailTransporter.sendMail({
+    from: SMTP_FROM,
+    to: email,
+    subject: 'Your Service Mafia verification code',
+    text: `Your Service Mafia verification code is ${code}. It expires in 10 minutes.`,
+    html: `<p>Your Service Mafia verification code is:</p><p style="font-size:24px;font-weight:700;letter-spacing:2px;">${code}</p><p>This code expires in 10 minutes.</p>`
+  });
+  return true;
+}
+
+function hasVerifiedEmail(email, purpose) {
+  const key = verificationKey(email, purpose);
+  const record = verificationStore.get(key);
+  if (!record || !record.verifiedAt || record.consumedAt) return false;
+  if (record.expiresAt < Date.now()) return false;
+  return true;
+}
+
+function consumeVerifiedEmail(email, purpose) {
+  const key = verificationKey(email, purpose);
+  const record = verificationStore.get(key);
+  if (!record) return;
+  record.consumedAt = Date.now();
+  verificationStore.set(key, record);
 }
 
 function getWorkspace() {
@@ -422,7 +506,7 @@ app.get('/affiliate-terms', (_req, res) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ProCRM Affiliate Terms</title>
+  <title>Service Mafia Affiliate Terms</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 840px; margin: 40px auto; padding: 0 20px; color: #111827; line-height: 1.6; }
     h1, h2 { color: #0f172a; }
@@ -431,7 +515,7 @@ app.get('/affiliate-terms', (_req, res) => {
 </head>
 <body>
   <h1>Affiliate Program Terms</h1>
-  <p>These terms govern participation in the ProCRM affiliate program.</p>
+  <p>These terms govern participation in the Service Mafia affiliate program.</p>
   <h2>Commission</h2>
   <p>Affiliates earn the configured commission percentage on tracked referred sales accepted by the workspace owner.</p>
   <h2>Payouts</h2>
@@ -453,15 +537,30 @@ app.get('/api/launch-readiness', (_req, res) => {
     && workspace.growth?.affiliateSignupEnabled !== false
     && String(workspace.growth?.affiliateSignupCode || '').trim()
   );
+  const baseUrlConfigured = isConfiguredValue(APP_BASE_URL, { disallowLocalhost: true });
+  const jwtConfigured = isConfiguredValue(process.env.JWT_SECRET, {
+    placeholders: ['procrm-dev-secret', 'replace_with_secure_random_secret']
+  });
+  const supportEmailConfigured = isConfiguredValue(SUPPORT_EMAIL, {
+    placeholders: ['support@yourdomain.com']
+  });
+  const smtpSenderConfigured = isConfiguredValue(SMTP_FROM, {
+    placeholders: ['procrm <no-reply@yourdomain.com>', 'service mafia <no-reply@yourdomain.com>']
+  });
+  const smtpTransportConfigured = isConfiguredValue(SMTP_HOST) && smtpSenderConfigured;
+  const stripeConfigured = isConfiguredValue(STRIPE_SECRET_KEY, {
+    placeholders: ['sk_live_xxx', 'sk_test_xxx']
+  });
   const checks = [
-    { key: 'app_base_url', ok: Boolean(APP_BASE_URL), detail: APP_BASE_URL },
-    { key: 'jwt_secret_configured', ok: Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET !== 'procrm-dev-secret'), detail: process.env.JWT_SECRET ? 'Configured' : 'Set JWT_SECRET in production.' },
-    { key: 'smtp_sender_configured', ok: Boolean(SMTP_FROM), detail: SMTP_FROM || 'Set SMTP_FROM when email provider is ready.' },
-    { key: 'support_email_configured', ok: Boolean(SUPPORT_EMAIL), detail: SUPPORT_EMAIL },
+    { key: 'app_base_url', ok: baseUrlConfigured, detail: baseUrlConfigured ? APP_BASE_URL : 'Set APP_BASE_URL to your real HTTPS production domain.' },
+    { key: 'jwt_secret_configured', ok: jwtConfigured, detail: jwtConfigured ? 'Configured' : 'Set a non-placeholder JWT_SECRET in production.' },
+    { key: 'smtp_sender_configured', ok: smtpSenderConfigured, detail: smtpSenderConfigured ? SMTP_FROM : 'Set SMTP_FROM to a real sender address.' },
+    { key: 'smtp_transport_configured', ok: smtpTransportConfigured, detail: smtpTransportConfigured ? `${SMTP_HOST}:${SMTP_PORT}` : 'Set SMTP_HOST/SMTP_PORT and credentials for email delivery.' },
+    { key: 'support_email_configured', ok: supportEmailConfigured, detail: supportEmailConfigured ? SUPPORT_EMAIL : 'Set SUPPORT_EMAIL to your real support inbox.' },
     { key: 'affiliate_enabled', ok: Boolean(workspace.growth?.affiliateEnabled), detail: 'Affiliate program toggle' },
     { key: 'affiliate_terms_url', ok: Boolean(workspace.growth?.affiliateTermsUrl), detail: workspace.growth?.affiliateTermsUrl || 'Add affiliate terms URL.' },
     { key: 'affiliate_signup_ready', ok: affiliateSignupReady, detail: affiliateSignupReady ? `Signup code ${workspace.growth.affiliateSignupCode} is active.` : 'Enable affiliate signup flow.' },
-    { key: 'stripe_key_configured', ok: Boolean(STRIPE_SECRET_KEY), detail: STRIPE_SECRET_KEY ? 'Configured' : 'Pending owner-provided key' }
+    { key: 'stripe_key_configured', ok: stripeConfigured, detail: stripeConfigured ? 'Configured' : 'Set the real Stripe secret key before launch.' }
   ];
   res.json({ ok: true, checks });
 });
@@ -475,73 +574,74 @@ app.post('/api/migrate/local', (req, res) => {
   res.json({ ok: true, counts: { users: users.length, clients: clients.length, employees: employees.length } });
 });
 
-// ───── TEAM CHAT ENDPOINTS ─────
-app.get('/api/channels', authRequired, (req, res) => {
-  const channels = db.prepare('SELECT * FROM channels ORDER BY created_at ASC').all();
-  res.json({ ok: true, channels });
-});
-
-app.get('/api/channels/:channelId/messages', authRequired, (req, res) => {
-  const { channelId } = req.params;
-  const messages = db.prepare(`
-    SELECT cm.*, u.name, u.email FROM chat_messages cm
-    JOIN users u ON u.id = cm.user_id
-    WHERE cm.channel_id = ?
-    ORDER BY cm.created_at ASC
-  `).all(Number(channelId));
-  res.json({ ok: true, messages });
-});
-
-app.post('/api/channels/:channelId/messages', authRequired, (req, res) => {
-  const { channelId } = req.params;
-  const { message } = req.body || {};
-  if (!message || !String(message).trim()) {
-    res.status(400).json({ error: 'Message text is required.' });
+app.post('/api/auth/send-verification-code', async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const purpose = String(req.body?.purpose || 'signup').toLowerCase();
+  if (!email || !isValidEmail(email)) {
+    res.status(400).json({ error: 'Enter a valid email address.' });
     return;
   }
-  const createdAt = new Date().toISOString();
-  const result = db.prepare(`
-    INSERT INTO chat_messages (channel_id, user_id, message, created_at)
-    VALUES (?, ?, ?, ?)
-  `).run(Number(channelId), req.user.id, String(message).trim(), createdAt);
-  
-  const newMsg = db.prepare('SELECT cm.*, u.name, u.email FROM chat_messages cm JOIN users u ON u.id = cm.user_id WHERE cm.id = ?').get(result.lastInsertRowid);
-  res.json({ ok: true, message: newMsg });
-});
 
-app.post('/api/channels', authRequired, (req, res) => {
-  if (req.user.role !== 'admin') {
-    res.status(403).json({ error: 'Only admins can create channels.' });
-    return;
-  }
-  const { name, description, channelType } = req.body || {};
-  if (!name || !String(name).trim()) {
-    res.status(400).json({ error: 'Channel name is required.' });
-    return;
-  }
-  const now = new Date().toISOString();
+  const code = createVerificationCode();
+  const key = verificationKey(email, purpose);
+  const now = Date.now();
+  const expiresAt = now + (10 * 60 * 1000);
+  verificationStore.set(key, {
+    codeHash: crypto.createHash('sha256').update(code).digest('hex'),
+    attempts: 0,
+    verifiedAt: null,
+    createdAt: now,
+    expiresAt,
+    consumedAt: null
+  });
+
   try {
-    const result = db.prepare(`
-      INSERT INTO channels (name, description, channel_type, owner_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(String(name).trim().toLowerCase(), String(description || ''), String(channelType || 'public'), req.user.id, now, now);
-    const channel = { id: result.lastInsertRowid, name: String(name).trim().toLowerCase(), description: String(description || ''), channel_type: String(channelType || 'public'), owner_id: req.user.id, created_at: now, updated_at: now };
-    res.json({ ok: true, channel });
-  } catch (err) {
-    res.status(400).json({ error: 'Channel name must be unique.' });
+    const sent = await sendVerificationEmail(email, code);
+    const payload = { ok: true, expiresInMinutes: 10 };
+    if (!sent && process.env.NODE_ENV !== 'production') payload.devCode = code;
+    res.json(payload);
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to send verification email.' });
   }
 });
 
-app.delete('/api/channels/:channelId', authRequired, (req, res) => {
-  if (req.user.role !== 'admin') {
-    res.status(403).json({ error: 'Only admins can delete channels.' });
+app.post('/api/auth/verify-email-code', (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const purpose = String(req.body?.purpose || 'signup').toLowerCase();
+  const code = String(req.body?.code || '').trim();
+  if (!email || !code) {
+    res.status(400).json({ error: 'Email and verification code are required.' });
     return;
   }
-  const { channelId } = req.params;
-  db.prepare('DELETE FROM chat_messages WHERE channel_id = ?').run(Number(channelId));
-  db.prepare('DELETE FROM channel_members WHERE channel_id = ?').run(Number(channelId));
-  db.prepare('DELETE FROM channels WHERE id = ?').run(Number(channelId));
-  res.json({ ok: true });
+
+  const key = verificationKey(email, purpose);
+  const record = verificationStore.get(key);
+  if (!record) {
+    res.status(400).json({ error: 'Request a verification code first.' });
+    return;
+  }
+  if (record.expiresAt < Date.now()) {
+    verificationStore.delete(key);
+    res.status(400).json({ error: 'Verification code expired. Request a new one.' });
+    return;
+  }
+  if (record.attempts >= 6) {
+    verificationStore.delete(key);
+    res.status(429).json({ error: 'Too many attempts. Request a new verification code.' });
+    return;
+  }
+
+  const incomingHash = crypto.createHash('sha256').update(code).digest('hex');
+  if (incomingHash !== record.codeHash) {
+    record.attempts += 1;
+    verificationStore.set(key, record);
+    res.status(400).json({ error: 'Verification code is invalid.' });
+    return;
+  }
+
+  record.verifiedAt = Date.now();
+  verificationStore.set(key, record);
+  res.json({ ok: true, verified: true });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -592,15 +692,16 @@ app.post('/api/auth/owner-signup', async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const ownerName = String(req.body?.ownerName || '').trim();
   const password = String(req.body?.password || '');
+  const promoCode = String(req.body?.promoCode || '').trim().toUpperCase();
   const incomingWorkspace = req.body?.workspace;
   const workspace = getWorkspace();
 
-  if (workspace.onboarded) {
-    res.status(403).json({ error: 'Owner setup has already been completed.' });
-    return;
-  }
   if (!email || !ownerName || password.length < 8) {
     res.status(400).json({ error: 'Owner email, name, and an 8-character password are required.' });
+    return;
+  }
+  if (!hasVerifiedEmail(email, 'owner-signup')) {
+    res.status(403).json({ error: 'Email verification is required before signup.' });
     return;
   }
 
@@ -631,7 +732,25 @@ app.post('/api/auth/owner-signup', async (req, res) => {
     primaryAdmin: ownerName,
     onboarded: true
   };
+
+  if (promoCode) {
+    const affiliates = Array.isArray(mergedWorkspace.growth?.affiliates) ? mergedWorkspace.growth.affiliates : [];
+    const matchedAffiliate = affiliates.find(affiliate => String(affiliate.code || '').toUpperCase() === promoCode && affiliate.status !== 'inactive');
+    if (matchedAffiliate) {
+      matchedAffiliate.conversions = Number(matchedAffiliate.conversions || 0) + 1;
+      mergedWorkspace.growth.affiliateEvents = mergedWorkspace.growth.affiliateEvents || [];
+      mergedWorkspace.growth.affiliateEvents.push({
+        id: Date.now(),
+        type: 'owner_signup_referral',
+        affiliateEmail: matchedAffiliate.email,
+        amount: 0,
+        createdAt: new Date().toISOString(),
+        details: `${ownerName} signed up using promo code ${promoCode}.`
+      });
+    }
+  }
   saveWorkspace(mergedWorkspace);
+  consumeVerifiedEmail(email, 'owner-signup');
 
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(adminUser.id);
   const session = serializeUser(updatedUser);
@@ -661,6 +780,10 @@ app.post('/api/auth/employee-signup', async (req, res) => {
   }
 
   const normalEmail = normalizeEmail(email);
+  if (!hasVerifiedEmail(normalEmail, 'employee-signup')) {
+    res.status(403).json({ error: 'Email verification is required before signup.' });
+    return;
+  }
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalEmail);
   if (existing) {
     res.status(409).json({ error: 'An account with this email already exists. Please sign in.' });
@@ -708,6 +831,7 @@ app.post('/api/auth/employee-signup', async (req, res) => {
   session.employeeId = newLegacyId;
   const sessionHours = Math.max(1, Number(workspace.security?.sessionTimeoutHours || 12));
   const token = jwt.sign({ userId: newUser.id, role: newUser.role }, JWT_SECRET, { expiresIn: `${sessionHours}h` });
+  consumeVerifiedEmail(normalEmail, 'employee-signup');
 
   res.json({ ok: true, token, session, workspace: getWorkspace() });
 });
@@ -760,6 +884,58 @@ app.get('/api/contacts', authRequired, (_req, res) => {
   res.json({ ok: true, ...listContacts() });
 });
 
+// ───── TEAM CHAT ─────
+app.get('/api/channels', authRequired, (_req, res) => {
+  const channels = db.prepare('SELECT * FROM channels ORDER BY created_at ASC').all();
+  res.json({ ok: true, channels });
+});
+
+app.get('/api/channels/:channelId/messages', authRequired, (req, res) => {
+  const channelId = Number(req.params.channelId);
+  const messages = db.prepare(
+    'SELECT m.*, u.name, u.email FROM chat_messages m JOIN users u ON u.id = m.user_id WHERE m.channel_id = ? ORDER BY m.created_at ASC'
+  ).all(channelId);
+  res.json({ ok: true, messages });
+});
+
+app.post('/api/channels/:channelId/messages', authRequired, (req, res) => {
+  const channelId = Number(req.params.channelId);
+  const text = String(req.body?.message || '').trim();
+  if (!text) { res.status(400).json({ error: 'Message is required.' }); return; }
+  const now = new Date().toISOString();
+  const result = db.prepare(
+    'INSERT INTO chat_messages (channel_id, user_id, message, created_at) VALUES (?, ?, ?, ?)'
+  ).run(channelId, req.user.id, text, now);
+  const msg = db.prepare(
+    'SELECT m.*, u.name, u.email FROM chat_messages m JOIN users u ON u.id = m.user_id WHERE m.id = ?'
+  ).get(result.lastInsertRowid);
+  res.json({ ok: true, message: msg });
+});
+
+app.post('/api/channels', authRequired, adminRequired, (req, res) => {
+  const name = String(req.body?.name || '').trim().toLowerCase().replace(/\s+/g, '-');
+  const description = String(req.body?.description || '').trim();
+  const channelType = ['public', 'private'].includes(req.body?.channelType) ? req.body.channelType : 'public';
+  if (!name) { res.status(400).json({ error: 'Channel name is required.' }); return; }
+  const now = new Date().toISOString();
+  try {
+    const result = db.prepare(
+      'INSERT INTO channels (name, description, channel_type, owner_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(name, description, channelType, req.user.id, now, now);
+    res.json({ ok: true, channel: { id: result.lastInsertRowid, name, description, channel_type: channelType, owner_id: req.user.id, created_at: now } });
+  } catch {
+    res.status(409).json({ error: 'A channel with that name already exists.' });
+  }
+});
+
+app.delete('/api/channels/:channelId', authRequired, adminRequired, (req, res) => {
+  const channelId = Number(req.params.channelId);
+  db.prepare('DELETE FROM chat_messages WHERE channel_id = ?').run(channelId);
+  db.prepare('DELETE FROM channel_members WHERE channel_id = ?').run(channelId);
+  db.prepare('DELETE FROM channels WHERE id = ?').run(channelId);
+  res.json({ ok: true });
+});
+
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     next();
@@ -769,5 +945,5 @@ app.get('*', (req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`ProCRM server running on http://localhost:${PORT}`);
+  console.log(`Service Mafia server running on http://localhost:${PORT}`);
 });

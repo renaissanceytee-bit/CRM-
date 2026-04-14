@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * ProCRM Browser Test Harness
+ * Service Mafia Browser Test Harness
  * Automated smoke tests for login, onboarding, and workspace
  */
 
 import http from 'http';
+import { spawn } from 'child_process';
 import { URL } from 'url';
 
 // Colors for terminal output
@@ -32,12 +33,17 @@ const testEmail = 'admin@procrm.local';
 const testPassword = 'password123';
 
 let authToken = null;
+let serverProcess = null;
 let testResults = {
   total: 0,
   passed: 0,
   failed: 0,
   errors: []
 };
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 /**
  * Make HTTP API call
@@ -82,15 +88,52 @@ async function apiCall(method, endpoint, body = null, useAuth = true, expectJson
   });
 }
 
+async function canReachServer() {
+  try {
+    const res = await apiCall('GET', '/api/health', null, false);
+    return res.status === 200;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureServer() {
+  if (await canReachServer()) return;
+
+  info('No local server detected. Starting Service Mafia automatically...');
+  serverProcess = spawn(process.execPath, ['server.js'], {
+    cwd: process.cwd(),
+    stdio: 'ignore'
+  });
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (await canReachServer()) {
+      info('Local server started for smoke tests.');
+      return;
+    }
+    await delay(1000);
+  }
+
+  throw new Error('Unable to start local server for smoke tests.');
+}
+
+function stopServer() {
+  if (serverProcess && !serverProcess.killed) {
+    serverProcess.kill('SIGTERM');
+  }
+}
+
 /**
  * Test suite runner
  */
 async function runTests() {
-  info('Starting ProCRM Browser Test Suite');
+  info('Starting Service Mafia Browser Test Suite');
   info(`Target: ${apiBaseUrl}`);
   console.log('');
 
   try {
+    await ensureServer();
+
     // Test 1: Health Check
     await testHealthCheck();
 
@@ -112,6 +155,7 @@ async function runTests() {
 
   } catch (err) {
     error(`Test suite failed: ${err.message}`);
+    stopServer();
     process.exit(1);
   }
 }
@@ -209,12 +253,12 @@ async function testFrontendElements() {
       && html.includes('id="authScreen"')
       && html.includes('class="auth-panel"')
       && html.includes('class="auth-card"')
-      && html.includes('auth-inline-proof')
+      && html.includes('auth-cta-group')
       && html.includes('id="mobileInstallPromptModal"')
       && html.includes('manifest.json')
     ) {
       info('  ✓ Single-panel onboarding/auth screen is present');
-      info('  ✓ Review/social proof section on landing page');
+      info('  ✓ Primary landing actions are present');
       info('  ✓ Mobile install prompt modal is present');
       info('  ✓ Manifest linked for web app install');
       info('  ✓ Owner and workspace portal pages');
@@ -254,6 +298,7 @@ function printSummary() {
   console.log(`${status}${testResults.failed === 0 ? '✓ All smoke tests passed!' : '✗ Some tests failed'}${colors.reset}`);
   console.log('');
 
+  stopServer();
   process.exit(testResults.failed === 0 ? 0 : 1);
 }
 

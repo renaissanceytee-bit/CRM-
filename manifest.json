@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "ProCRM",
-  "short_name": "ProCRM",
+  "name": "Service Mafia",
+  "short_name": "Mafia",
   "description": "Premium CRM for revenue, scheduling, employees, and customer operations.",
   "start_url": "/",
   "scope": "/",

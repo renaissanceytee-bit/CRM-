@@ -1,5 +1,5 @@
 // ============================================================
-//  ProCRM — Premium Business CRM  |  app.js
+//  Service Mafia — Premium Business CRM  |  app.js
 // ============================================================
 
 // ─── DATA STORE ─────────────────────────────────────────────
@@ -62,7 +62,8 @@ const DB = {
         affiliateCookieDays: 30,
         affiliateMinPayout: 50,
         affiliatePayoutEmail: '',
-        affiliatePayoutMethod: 'bank-transfer',
+        affiliatePayoutMethod: 'venmo',
+        affiliateVenmoHandle: '',
         affiliateTermsUrl: `${window.location.origin}/affiliate-terms`,
         inviteDiscountPct: 10,
         inviteFreeMonths: 1,
@@ -73,7 +74,52 @@ const DB = {
       },
       serviceCatalog: [],
       billingCycle: 'monthly',
-      nextBillingDate: null
+      nextBillingDate: null,
+      subscriptionStatus: 'trialing',
+      teamRoles: {
+        manager: {
+          label: 'Manager',
+          baseRole: 'manager',
+          permissions: {
+            createBookings: true,
+            editBookings: true,
+            assignBookings: true,
+            manageClients: true,
+            manageEmployees: true,
+            viewRevenue: true,
+            viewPayroll: true
+          },
+          bookingQuestions: []
+        },
+        salesman: {
+          label: 'Salesperson',
+          baseRole: 'salesman',
+          permissions: {
+            createBookings: true,
+            editBookings: true,
+            assignBookings: true,
+            manageClients: true,
+            manageEmployees: false,
+            viewRevenue: true,
+            viewPayroll: false
+          },
+          bookingQuestions: []
+        },
+        technician: {
+          label: 'Technician',
+          baseRole: 'technician',
+          permissions: {
+            createBookings: false,
+            editBookings: false,
+            assignBookings: false,
+            manageClients: false,
+            manageEmployees: false,
+            viewRevenue: false,
+            viewPayroll: false
+          },
+          bookingQuestions: []
+        }
+      }
     };
     const stored = JSON.parse(localStorage.getItem('crm_workspace') || '{}');
     return {
@@ -91,7 +137,42 @@ const DB = {
         affiliateEvents: Array.isArray(stored.growth?.affiliateEvents) ? stored.growth.affiliateEvents : fallback.growth.affiliateEvents,
         payoutHistory: Array.isArray(stored.growth?.payoutHistory) ? stored.growth.payoutHistory : fallback.growth.payoutHistory
       },
-      serviceCatalog: Array.isArray(stored.serviceCatalog) ? stored.serviceCatalog : fallback.serviceCatalog
+      serviceCatalog: Array.isArray(stored.serviceCatalog) ? stored.serviceCatalog : fallback.serviceCatalog,
+      teamRoles: {
+        manager: {
+          ...fallback.teamRoles.manager,
+          ...(stored.teamRoles?.manager || {}),
+          permissions: {
+            ...fallback.teamRoles.manager.permissions,
+            ...(stored.teamRoles?.manager?.permissions || {})
+          },
+          bookingQuestions: Array.isArray(stored.teamRoles?.manager?.bookingQuestions)
+            ? stored.teamRoles.manager.bookingQuestions
+            : fallback.teamRoles.manager.bookingQuestions
+        },
+        salesman: {
+          ...fallback.teamRoles.salesman,
+          ...(stored.teamRoles?.salesman || {}),
+          permissions: {
+            ...fallback.teamRoles.salesman.permissions,
+            ...(stored.teamRoles?.salesman?.permissions || {})
+          },
+          bookingQuestions: Array.isArray(stored.teamRoles?.salesman?.bookingQuestions)
+            ? stored.teamRoles.salesman.bookingQuestions
+            : fallback.teamRoles.salesman.bookingQuestions
+        },
+        technician: {
+          ...fallback.teamRoles.technician,
+          ...(stored.teamRoles?.technician || {}),
+          permissions: {
+            ...fallback.teamRoles.technician.permissions,
+            ...(stored.teamRoles?.technician?.permissions || {})
+          },
+          bookingQuestions: Array.isArray(stored.teamRoles?.technician?.bookingQuestions)
+            ? stored.teamRoles.technician.bookingQuestions
+            : fallback.teamRoles.technician.bookingQuestions
+        }
+      }
     };
   },
   get notifications()  { return JSON.parse(localStorage.getItem('crm_notifications') || '[]'); },
@@ -129,7 +210,9 @@ const DB = {
 
 const AUTH_STORAGE_KEYS = {
   session: 'crm_session',
-  token: 'crm_api_token'
+  token: 'crm_api_token',
+  rememberPreference: 'crm_remember_preference',
+  lastLoginEmail: 'crm_last_login_email'
 };
 
 const INSTALL_PROMPT_STORAGE_KEYS = {
@@ -149,6 +232,26 @@ function isRememberedLogin() {
   return Boolean(localStorage.getItem(AUTH_STORAGE_KEYS.session) || localStorage.getItem(AUTH_STORAGE_KEYS.token));
 }
 
+function getRememberPreference() {
+  const stored = localStorage.getItem(AUTH_STORAGE_KEYS.rememberPreference);
+  if (stored === null) return true;
+  return stored === '1';
+}
+
+function setRememberPreference(remember) {
+  localStorage.setItem(AUTH_STORAGE_KEYS.rememberPreference, remember ? '1' : '0');
+}
+
+function getLastLoginEmail() {
+  return normalizeEmail(localStorage.getItem(AUTH_STORAGE_KEYS.lastLoginEmail) || '');
+}
+
+function setLastLoginEmail(email) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return;
+  localStorage.setItem(AUTH_STORAGE_KEYS.lastLoginEmail, normalized);
+}
+
 // ─── STATE ───────────────────────────────────────────────────
 let currentPage = 'dashboard';
 let currentBookingTab = 'all-bookings';
@@ -163,11 +266,18 @@ let deferredInstallPrompt = null;
 let serviceWorkerRegistration = null;
 let authInitPromise = Promise.resolve();
 let authInitialized = false;
+const emailVerificationState = {
+  owner: { email: '', verified: false },
+  employee: { email: '', verified: false },
+  affiliate: { email: '', verified: false }
+};
 
-// Team Chat
-let channels = [];
-let currentChannel = null;
-let channelMessages = [];
+const workspaceEmailVerificationState = {
+  oldEmail: '',
+  newEmail: '',
+  oldVerified: false,
+  newVerified: false
+};
 
 const backendState = {
   available: false,
@@ -199,9 +309,9 @@ const PLAN_DEFINITIONS = {
     }
   },
   starter: {
-    label: 'Budget',
+    label: 'Starter',
     monthlyPrice: 20,
-    yearlyPrice: 168,
+    yearlyPrice: 144,
     employeeLimit: 3,
     seatLimitLabel: '3 employees',
     features: {
@@ -220,9 +330,9 @@ const PLAN_DEFINITIONS = {
     }
   },
   professional: {
-    label: 'Growth',
+    label: 'Professional',
     monthlyPrice: 50,
-    yearlyPrice: 420,
+    yearlyPrice: 360,
     employeeLimit: 10,
     seatLimitLabel: '10 employees',
     features: {
@@ -241,9 +351,9 @@ const PLAN_DEFINITIONS = {
     }
   },
   premium: {
-    label: 'Unlimited',
+    label: 'Premium',
     monthlyPrice: 100,
-    yearlyPrice: 840,
+    yearlyPrice: 720,
     employeeLimit: Infinity,
     seatLimitLabel: 'Unlimited employees',
     features: {
@@ -336,8 +446,55 @@ function getDisplayPrice(plan = null) {
   return `$${price}/mo`;
 }
 
+function renderPlanPrice(planKey, billingCycle = 'monthly') {
+  const plan = PLAN_DEFINITIONS[planKey];
+  if (!plan) return '';
+  if (planKey === 'free') return '$0/mo';
+
+  if (billingCycle === 'yearly') {
+    const oldYearly = plan.monthlyPrice * 12;
+    return `<span class="plan-price-stack"><span class="plan-price-old">$${oldYearly}/yr</span><span class="plan-price-new">$${plan.yearlyPrice}/yr</span><span class="plan-price-discount">40% OFF</span></span>`;
+  }
+  return `$${plan.monthlyPrice}/mo`;
+}
+
+function refreshPlanCardPrices() {
+  const workspaceBilling = $('workspaceBillingCycle')?.value || getWorkspace().billingCycle || 'monthly';
+  const onboardBilling = $('onboardBillingCycle')?.value || workspaceBilling;
+
+  const workspaceMap = {
+    free: 'planFreePrice',
+    starter: 'planStarterPrice',
+    professional: 'planProfessionalPrice',
+    premium: 'planPremiumPrice'
+  };
+  const onboardMap = {
+    starter: 'onboardPlanStarterPrice',
+    professional: 'onboardPlanProfessionalPrice',
+    premium: 'onboardPlanPremiumPrice'
+  };
+
+  Object.entries(workspaceMap).forEach(([plan, id]) => {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = renderPlanPrice(plan, workspaceBilling);
+  });
+
+  Object.entries(onboardMap).forEach(([plan, id]) => {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = renderPlanPrice(plan, onboardBilling);
+  });
+}
+
 function hasFeature(featureName) {
-  return Boolean(getActivePlan().features[featureName]);
+  const workspace = getWorkspace();
+  const plan = getActivePlan();
+  const included = Boolean(plan.features[featureName]);
+  if (!included) return false;
+  if (workspace.plan === 'free') return true;
+  const status = String(workspace.subscriptionStatus || 'trialing').toLowerCase();
+  return status === 'active' || status === 'trialing';
 }
 
 function setBackendToken(token, remember = isRememberedLogin()) {
@@ -447,7 +604,7 @@ function getCurrentEmployee() {
 }
 
 function getDefaultEmployeePermissions(role = 'technician') {
-  return {
+  const defaults = {
     createBookings: role === 'salesman' || role === 'manager',
     editBookings: role === 'salesman' || role === 'manager',
     assignBookings: role === 'salesman' || role === 'manager',
@@ -456,6 +613,9 @@ function getDefaultEmployeePermissions(role = 'technician') {
     viewRevenue: role === 'salesman' || role === 'manager',
     viewPayroll: role === 'manager'
   };
+  const configured = getWorkspace()?.teamRoles?.[role]?.permissions;
+  if (!configured || typeof configured !== 'object') return defaults;
+  return { ...defaults, ...configured };
 }
 
 function getEmployeePermissions(employee = null) {
@@ -666,7 +826,7 @@ function maybeNotifyBrowser(message) {
   if (document.visibilityState === 'visible') return;
 
   if (serviceWorkerRegistration?.showNotification) {
-    serviceWorkerRegistration.showNotification('ProCRM', {
+    serviceWorkerRegistration.showNotification('Service Mafia', {
       body: message,
       icon: 'icon.svg',
       badge: 'icon.svg',
@@ -675,7 +835,7 @@ function maybeNotifyBrowser(message) {
     return;
   }
 
-  new Notification('ProCRM', { body: message, icon: 'icon.svg' });
+  new Notification('Service Mafia', { body: message, icon: 'icon.svg' });
 }
 
 async function requestBrowserNotificationPermission() {
@@ -827,7 +987,61 @@ function isStandaloneMode() {
 }
 
 function isMobileDevice() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') || coarsePointer || window.innerWidth <= 900;
+}
+
+function applyDeviceModeClass() {
+  const mobile = isMobileDevice();
+  document.body.classList.toggle('is-mobile', mobile);
+  document.body.classList.toggle('is-desktop', !mobile);
+}
+
+async function sendEmailVerificationCode(email, purpose) {
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    showToast('Email is required before sending a code.', 'error');
+    return false;
+  }
+
+  try {
+    const response = await apiRequest('/api/auth/send-verification-code', {
+      method: 'POST',
+      auth: false,
+      body: { email: normalized, purpose }
+    });
+    if (response.devCode) {
+      showToast(`Verification code sent. Dev code: ${response.devCode}`, 'info');
+    } else {
+      showToast('Verification code sent to your email.');
+    }
+    return true;
+  } catch (error) {
+    showToast(error.message || 'Unable to send verification code.', 'error');
+    return false;
+  }
+}
+
+async function verifyEmailCode(email, code, purpose, stateKey) {
+  const normalized = normalizeEmail(email);
+  const trimmedCode = String(code || '').trim();
+  if (!normalized || !trimmedCode) {
+    showToast('Enter both email and verification code.', 'error');
+    return false;
+  }
+  try {
+    await apiRequest('/api/auth/verify-email-code', {
+      method: 'POST',
+      auth: false,
+      body: { email: normalized, code: trimmedCode, purpose }
+    });
+    emailVerificationState[stateKey] = { email: normalized, verified: true };
+    showToast('Email verified.');
+    return true;
+  } catch (error) {
+    showToast(error.message || 'Verification code is invalid.', 'error');
+    return false;
+  }
 }
 
 function getSavedInstallChoice() {
@@ -854,19 +1068,19 @@ function populateMobileInstallPrompt() {
   if (!headline || !text || !hint || !installBtn) return;
 
   if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
-    headline.textContent = 'Add ProCRM to your iPhone home screen';
-    text.textContent = 'Use ProCRM like an app with a full-screen launch and a home screen icon for fast access.';
+    headline.textContent = 'Add Service Mafia to your iPhone home screen';
+    text.textContent = 'Use Service Mafia like an app with a full-screen launch and a home screen icon for fast access.';
     hint.textContent = 'Tap Share in Safari, then choose Add to Home Screen. You can keep using the website if you prefer.';
     installBtn.innerHTML = '<i class="fas fa-share-from-square"></i> Show iPhone Install Steps';
     return;
   }
 
-  headline.textContent = 'Install ProCRM on your phone';
+  headline.textContent = 'Install Service Mafia on your phone';
   text.textContent = deferredInstallPrompt
-    ? 'Your browser can install ProCRM right now for a faster, app-like mobile experience.'
-    : 'Your mobile browser supports web apps. If install is available, you can add ProCRM to your home screen.';
+    ? 'Your browser can install Service Mafia right now for a faster, app-like mobile experience.'
+    : 'Your mobile browser supports web apps. If install is available, you can add Service Mafia to your home screen.';
   hint.textContent = deferredInstallPrompt
-    ? 'Tap Install App to add ProCRM to your phone, or continue in the browser for now.'
+    ? 'Tap Install App to add Service Mafia to your phone, or continue in the browser for now.'
     : 'If no install prompt appears, keep using the website and install later from Workspace settings.';
   installBtn.innerHTML = '<i class="fas fa-download"></i> Install App';
 }
@@ -900,7 +1114,7 @@ async function sendTestNotification() {
   if (!workspace.notificationPrefs.browserAlerts) {
     await requestBrowserNotificationPermission();
   }
-  maybeNotifyBrowser('Test notification: ProCRM is ready on web and mobile.');
+  maybeNotifyBrowser('Test notification: Service Mafia is ready on web and mobile.');
   showToast('Test notification sent if permission is granted.');
 }
 
@@ -943,12 +1157,24 @@ function renderAffiliateProgram() {
   if (!list) return;
 
   const affiliates = workspaceAffiliates();
+  const minPayout = Number(getWorkspace().growth?.affiliateMinPayout || 0);
+  const payoutMethod = String(getWorkspace().growth?.affiliatePayoutMethod || 'venmo');
+  const venmoHandle = String(getWorkspace().growth?.affiliateVenmoHandle || '').trim();
+  const payoutEligibleCount = affiliates.filter(affiliate => Number(affiliate.payoutDue || 0) >= minPayout && Number(affiliate.payoutDue || 0) > 0).length;
   if (!affiliates.length) {
     list.innerHTML = '<div class="empty-state"><i class="fas fa-handshake-angle"></i><p>No affiliate partners yet. Add one to start tracking commission payouts.</p></div>';
     return;
   }
 
-  list.innerHTML = affiliates.map(affiliate => `
+  list.innerHTML = `
+    <div class="workspace-list-item">
+      <div>
+        <strong>Payout Tracking</strong>
+        <span>${payoutEligibleCount} affiliate${payoutEligibleCount === 1 ? '' : 's'} currently eligible for payout at ${fmt(minPayout)} minimum.</span>
+      </div>
+      <span class="pill-tag">${payoutMethod === 'venmo' ? (venmoHandle ? `Venmo ${venmoHandle}` : 'Venmo') : payoutMethod}</span>
+    </div>
+  ` + affiliates.map(affiliate => `
     <div class="workspace-list-item">
       <div>
         <strong>${affiliate.name}</strong>
@@ -1054,6 +1280,7 @@ function renderWorkspaceFeatureGrid() {
 
 function renderWorkspacePage() {
   const workspace = getWorkspace();
+  workspace.teamRoles = workspace.teamRoles || DB.workspace.teamRoles;
   const teamLocked = !hasFeature('teamManagement');
   const managerLocked = !hasFeature('managerControls');
   const payrollLocked = !hasFeature('payrollAutomation');
@@ -1065,6 +1292,7 @@ function renderWorkspacePage() {
   if ($('workspaceBusinessEmail')) $('workspaceBusinessEmail').value = workspace.businessEmail || '';
   if ($('workspaceTimezone')) $('workspaceTimezone').value = workspace.timezone || 'America/New_York';
   if ($('workspaceBillingCycle')) $('workspaceBillingCycle').value = workspace.billingCycle || 'monthly';
+  if ($('workspaceSubscriptionStatus')) $('workspaceSubscriptionStatus').value = workspace.subscriptionStatus || 'trialing';
 
   if ($('workspaceBufferMinutes')) $('workspaceBufferMinutes').value = Number(workspace.scheduling.bufferMinutes || 15);
   if ($('workspaceBookingWindowDays')) $('workspaceBookingWindowDays').value = Number(workspace.scheduling.bookingWindowDays || 45);
@@ -1095,6 +1323,55 @@ function renderWorkspacePage() {
   if ($('workspaceCompletionNotes')) $('workspaceCompletionNotes').checked = Boolean(workspace.management.requireCompletionNotes);
   if ($('workspaceEmployeeSelfAssign')) $('workspaceEmployeeSelfAssign').checked = Boolean(workspace.management.allowEmployeeSelfAssign);
   if ($('workspaceDispatchBoard')) $('workspaceDispatchBoard').checked = Boolean(workspace.management.advancedDispatchBoard);
+  if ($('roleManagerLabel')) $('roleManagerLabel').value = workspace.teamRoles.manager?.label || 'Manager';
+  if ($('roleSalesmanLabel')) $('roleSalesmanLabel').value = workspace.teamRoles.salesman?.label || 'Salesperson';
+  if ($('roleTechnicianLabel')) $('roleTechnicianLabel').value = workspace.teamRoles.technician?.label || 'Technician';
+  if ($('employeeRole')) {
+    const roleOptions = {
+      manager: workspace.teamRoles.manager?.label || 'Manager',
+      salesman: workspace.teamRoles.salesman?.label || 'Salesperson',
+      technician: workspace.teamRoles.technician?.label || 'Technician'
+    };
+    Array.from($('employeeRole').options).forEach(option => {
+      if (roleOptions[option.value]) option.textContent = roleOptions[option.value];
+    });
+  }
+  if ($('onboardJoinRole')) {
+    const roleOptions = {
+      manager: workspace.teamRoles.manager?.label || 'Manager',
+      salesman: workspace.teamRoles.salesman?.label || 'Salesperson',
+      technician: workspace.teamRoles.technician?.label || 'Technician'
+    };
+    Array.from($('onboardJoinRole').options).forEach(option => {
+      if (roleOptions[option.value]) option.textContent = roleOptions[option.value];
+    });
+  }
+
+  const rolePrefixMap = {
+    manager: 'roleManager',
+    salesman: 'roleSalesman',
+    technician: 'roleTechnician'
+  };
+  Object.entries(rolePrefixMap).forEach(([roleKey, prefix]) => {
+    const perms = getDefaultEmployeePermissions(roleKey);
+    if ($(`${prefix}CreateBookings`)) $(`${prefix}CreateBookings`).checked = Boolean(perms.createBookings);
+    if ($(`${prefix}EditBookings`)) $(`${prefix}EditBookings`).checked = Boolean(perms.editBookings);
+    if ($(`${prefix}AssignBookings`)) $(`${prefix}AssignBookings`).checked = Boolean(perms.assignBookings);
+    if ($(`${prefix}ManageClients`)) $(`${prefix}ManageClients`).checked = Boolean(perms.manageClients);
+    if ($(`${prefix}ManageEmployees`)) $(`${prefix}ManageEmployees`).checked = Boolean(perms.manageEmployees);
+    if ($(`${prefix}ViewRevenue`)) $(`${prefix}ViewRevenue`).checked = Boolean(perms.viewRevenue);
+    if ($(`${prefix}ViewPayroll`)) $(`${prefix}ViewPayroll`).checked = Boolean(perms.viewPayroll);
+  });
+
+  if ($('managerBookingQuestions')) {
+    $('managerBookingQuestions').value = (workspace.teamRoles.manager?.bookingQuestions || []).join('\n');
+  }
+  if ($('workspaceCurrentEmailVerificationTarget')) {
+    $('workspaceCurrentEmailVerificationTarget').value = workspace.businessEmail || '';
+  }
+  if ($('workspaceNewEmailVerificationTarget')) {
+    $('workspaceNewEmailVerificationTarget').value = workspace.businessEmail || '';
+  }
 
   if ($('workspaceSeatsUsed')) $('workspaceSeatsUsed').textContent = getSeatLimitText();
   if ($('workspaceReferralSavings')) {
@@ -1112,10 +1389,26 @@ function renderWorkspacePage() {
   });
   if ($('prefPayrollAlerts')) $('prefPayrollAlerts').disabled = payrollLocked;
 
+  const adminOnlyIds = [
+    'workspaceCompanyName', 'workspaceBusinessCategory', 'workspaceCustomCategory', 'workspaceIndustry', 'workspaceTimezone',
+    'workspaceSubscriptionStatus', 'workspaceBillingCycle', 'workspaceBufferMinutes', 'workspaceBookingWindowDays',
+    'workspaceDefaultDuration', 'workspaceAutoConfirm', 'workspaceEditLockHours', 'workspaceMaxTechJobs', 'workspaceRoundRobin',
+    'workspaceSessionTimeoutHours', 'workspaceDefaultNewHireRole', 'workspaceInviteOnlyAccess', 'workspaceStrongPasswords',
+    'workspaceAllowPasswordReset', 'workspaceManagerDeleteApproval', 'workspaceAffiliateCode', 'workspaceAffiliateCommission',
+    'workspaceAffiliateCookieDays', 'workspaceAffiliateMinPayout', 'workspaceInviteDiscountPct', 'workspaceInviteFreeMonths',
+    'workspaceRevenueTarget', 'workspaceApprovalAmount', 'workspaceCompletionNotes', 'workspaceEmployeeSelfAssign',
+    'workspaceDispatchBoard', 'roleManagerLabel', 'roleSalesmanLabel', 'roleTechnicianLabel'
+  ];
+  adminOnlyIds.forEach(id => {
+    if ($(id)) $(id).disabled = !isAdmin();
+  });
+
   ['free', 'starter', 'professional', 'premium'].forEach(plan => {
     const el = $(`plan${plan.charAt(0).toUpperCase() + plan.slice(1)}`);
     if (el) el.classList.toggle('selected', workspace.plan === plan);
   });
+
+  refreshPlanCardPrices();
 
   renderWorkspaceAccessSummary();
   renderAffiliateProgram();
@@ -1129,13 +1422,39 @@ function renderWorkspacePage() {
 
 function saveWorkspaceSettings() {
   const workspace = getWorkspace();
+  const requestedBusinessEmail = normalizeEmail($('workspaceBusinessEmail').value) || workspace.businessEmail;
+  const currentBusinessEmail = normalizeEmail(workspace.businessEmail || '');
+
+  if (requestedBusinessEmail !== currentBusinessEmail) {
+    const oldVerified = workspaceEmailVerificationState.oldVerified && workspaceEmailVerificationState.oldEmail === currentBusinessEmail;
+    const newVerified = workspaceEmailVerificationState.newVerified && workspaceEmailVerificationState.newEmail === requestedBusinessEmail;
+    if (!oldVerified || !newVerified) {
+      showToast('Verify the old email and the new email before saving this change.', 'error');
+      return;
+    }
+  }
+
+  if (!isAdmin()) {
+    workspace.teamRoles = workspace.teamRoles || DB.workspace.teamRoles;
+    workspace.teamRoles.manager = workspace.teamRoles.manager || { label: 'Manager', baseRole: 'manager', permissions: getDefaultEmployeePermissions('manager'), bookingQuestions: [] };
+    workspace.teamRoles.manager.bookingQuestions = String($('managerBookingQuestions')?.value || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .slice(0, 10);
+    saveWorkspace(workspace);
+    showToast('Manager booking questions saved.');
+    return;
+  }
+
   workspace.companyName = $('workspaceCompanyName').value.trim() || 'My Company';
   workspace.businessCategory = $('workspaceBusinessCategory').value;
   workspace.customCategory = $('workspaceCustomCategory').value.trim();
   workspace.industry = $('workspaceIndustry').value.trim();
-  workspace.businessEmail = normalizeEmail($('workspaceBusinessEmail').value) || workspace.businessEmail;
+  workspace.businessEmail = requestedBusinessEmail;
   workspace.timezone = $('workspaceTimezone').value;
   workspace.billingCycle = $('workspaceBillingCycle').value || 'monthly';
+  workspace.subscriptionStatus = $('workspaceSubscriptionStatus')?.value || workspace.subscriptionStatus || 'trialing';
   workspace.notificationPrefs = {
     employeePush: $('prefEmployeePush').checked,
     dailyDigest: $('prefDailyDigest').checked,
@@ -1167,6 +1486,54 @@ function saveWorkspaceSettings() {
     allowEmployeeSelfAssign: $('workspaceEmployeeSelfAssign').checked,
     advancedDispatchBoard: $('workspaceDispatchBoard').checked
   };
+  workspace.teamRoles = {
+    manager: {
+      label: $('roleManagerLabel')?.value.trim() || 'Manager',
+      baseRole: 'manager',
+      permissions: {
+        createBookings: Boolean($('roleManagerCreateBookings')?.checked),
+        editBookings: Boolean($('roleManagerEditBookings')?.checked),
+        assignBookings: Boolean($('roleManagerAssignBookings')?.checked),
+        manageClients: Boolean($('roleManagerManageClients')?.checked),
+        manageEmployees: Boolean($('roleManagerManageEmployees')?.checked),
+        viewRevenue: Boolean($('roleManagerViewRevenue')?.checked),
+        viewPayroll: Boolean($('roleManagerViewPayroll')?.checked)
+      },
+      bookingQuestions: String($('managerBookingQuestions')?.value || '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean)
+        .slice(0, 10)
+    },
+    salesman: {
+      label: $('roleSalesmanLabel')?.value.trim() || 'Salesperson',
+      baseRole: 'salesman',
+      permissions: {
+        createBookings: Boolean($('roleSalesmanCreateBookings')?.checked),
+        editBookings: Boolean($('roleSalesmanEditBookings')?.checked),
+        assignBookings: Boolean($('roleSalesmanAssignBookings')?.checked),
+        manageClients: Boolean($('roleSalesmanManageClients')?.checked),
+        manageEmployees: Boolean($('roleSalesmanManageEmployees')?.checked),
+        viewRevenue: Boolean($('roleSalesmanViewRevenue')?.checked),
+        viewPayroll: Boolean($('roleSalesmanViewPayroll')?.checked)
+      },
+      bookingQuestions: []
+    },
+    technician: {
+      label: $('roleTechnicianLabel')?.value.trim() || 'Technician',
+      baseRole: 'technician',
+      permissions: {
+        createBookings: Boolean($('roleTechnicianCreateBookings')?.checked),
+        editBookings: Boolean($('roleTechnicianEditBookings')?.checked),
+        assignBookings: Boolean($('roleTechnicianAssignBookings')?.checked),
+        manageClients: Boolean($('roleTechnicianManageClients')?.checked),
+        manageEmployees: Boolean($('roleTechnicianManageEmployees')?.checked),
+        viewRevenue: Boolean($('roleTechnicianViewRevenue')?.checked),
+        viewPayroll: Boolean($('roleTechnicianViewPayroll')?.checked)
+      },
+      bookingQuestions: []
+    }
+  };
   workspace.growth = {
     ...workspace.growth,
     affiliateEnabled: Boolean(workspace.growth?.affiliateEnabled),
@@ -1185,6 +1552,11 @@ function saveWorkspaceSettings() {
   renderServiceSuggestions();
   renderWorkspacePage();
   showToast('Workspace settings saved.');
+
+  workspaceEmailVerificationState.oldEmail = '';
+  workspaceEmailVerificationState.newEmail = '';
+  workspaceEmailVerificationState.oldVerified = false;
+  workspaceEmailVerificationState.newVerified = false;
 }
 
 function selectWorkspacePlan(plan) {
@@ -1464,6 +1836,7 @@ function saveAffiliateProgramSettings() {
   workspace.growth.affiliateMinPayout = Math.max(0, Number($('affiliateMinPayoutInput')?.value || 50));
   workspace.growth.affiliatePayoutEmail = normalizeEmail($('affiliatePayoutEmailInput')?.value || '');
   workspace.growth.affiliatePayoutMethod = $('affiliatePayoutMethodSelect')?.value || 'bank-transfer';
+  workspace.growth.affiliateVenmoHandle = String($('affiliateVenmoHandleInput')?.value || '').trim();
   workspace.growth.affiliateTermsUrl = String($('affiliateTermsUrlInput')?.value || '').trim();
   workspace.growth.affiliateSignupCode = String(workspace.growth.affiliateSignupCode || 'AFFILIATE').toUpperCase();
   workspace.growth.affiliates = workspace.growth.affiliates || [];
@@ -1515,6 +1888,10 @@ function completeAffiliateSignup() {
 
   if (!name || !email || !password) {
     showToast('Name, email, and password are required.', 'error');
+    return;
+  }
+  if (!emailVerificationState.affiliate.verified || emailVerificationState.affiliate.email !== email) {
+    showToast('Verify your affiliate email before creating your account.', 'error');
     return;
   }
   if (!passwordMeetsPolicy(password)) {
@@ -1591,8 +1968,10 @@ function completeAffiliateSignup() {
   $('affiliateSignupLastName').value = '';
   $('affiliateSignupEmail').value = '';
   $('affiliateSignupPassword').value = '';
+  if ($('affiliateSignupVerificationCode')) $('affiliateSignupVerificationCode').value = '';
   $('affiliateSignupBusinessCode').value = '';
   $('affiliateSignupCommission').value = '';
+  emailVerificationState.affiliate = { email: '', verified: false };
 
   if (workspace.notificationPrefs.leadAlerts) {
     addNotification(`${name} joined as an affiliate partner.`, null, 'system');
@@ -1616,6 +1995,7 @@ function renderAffiliatePortalPage() {
   if ($('affiliateMinPayoutInput')) $('affiliateMinPayoutInput').value = Number(growth.affiliateMinPayout || 50);
   if ($('affiliatePayoutEmailInput')) $('affiliatePayoutEmailInput').value = growth.affiliatePayoutEmail || workspace.businessEmail || '';
   if ($('affiliatePayoutMethodSelect')) $('affiliatePayoutMethodSelect').value = growth.affiliatePayoutMethod || 'bank-transfer';
+  if ($('affiliateVenmoHandleInput')) $('affiliateVenmoHandleInput').value = growth.affiliateVenmoHandle || '';
   if ($('affiliateTermsUrlInput')) $('affiliateTermsUrlInput').value = growth.affiliateTermsUrl || `${window.location.origin}/affiliate-terms`;
 
   const totalConversions = affiliates.reduce((sum, affiliate) => sum + Number(affiliate.conversions || 0), 0);
@@ -1719,7 +2099,7 @@ function renderAffiliatePortalPage() {
         <div class="workspace-list-item">
           <div>
             <strong>${affiliate.name}</strong>
-            <span>${fmt(affiliate.payoutDue || 0)} due · Min payout ${fmt(growth.affiliateMinPayout || 0)} · Paid total ${fmt(affiliate.payoutPaid || 0)}</span>
+            <span>${fmt(affiliate.payoutDue || 0)} due · Min payout ${fmt(growth.affiliateMinPayout || 0)} · Paid total ${fmt(affiliate.payoutPaid || 0)} · ${String(growth.affiliatePayoutMethod || 'venmo') === 'venmo' ? (growth.affiliateVenmoHandle ? `Venmo ${growth.affiliateVenmoHandle}` : 'Venmo') : (growth.affiliatePayoutMethod || 'bank-transfer')}</span>
           </div>
           ${ownerView ? `<button class="btn-link" onclick="markAffiliatePayoutPaid(${affiliate.id})">Mark Paid</button>` : '<span class="pill-tag">Owner review</span>'}
         </div>
@@ -1768,7 +2148,7 @@ function renderAffiliatePortalPage() {
       : '<div class="empty-state"><i class="fas fa-clock"></i><p>No recent actions.</p></div>';
   }
 
-  const ownerOnlyIds = ['affiliateEnabledSelect', 'affiliateCommissionPctInput', 'affiliateCookieDaysInput', 'affiliateMinPayoutInput', 'affiliatePayoutEmailInput', 'affiliatePayoutMethodSelect', 'affiliateTermsUrlInput', 'affiliateSaveProgramBtn', 'affiliateGenerateCodeBtn', 'affiliateCreatePartnerBtn', 'affiliatePortalCreatePartnerBtn', 'affiliatePortalLogSaleBtn'];
+  const ownerOnlyIds = ['affiliateEnabledSelect', 'affiliateCommissionPctInput', 'affiliateCookieDaysInput', 'affiliateMinPayoutInput', 'affiliatePayoutEmailInput', 'affiliatePayoutMethodSelect', 'affiliateVenmoHandleInput', 'affiliateTermsUrlInput', 'affiliateSaveProgramBtn', 'affiliateGenerateCodeBtn', 'affiliateCreatePartnerBtn', 'affiliatePortalCreatePartnerBtn', 'affiliatePortalLogSaleBtn'];
   ownerOnlyIds.forEach(id => {
     const node = $(id);
     if (node) node.disabled = !ownerView;
@@ -1822,6 +2202,7 @@ function showOnboardingStep(step) {
   if ($('onboardingSubtitle')) $('onboardingSubtitle').textContent = stepToLabel[step] || stepToLabel.choose;
   if ($('onboardingHeaderBackBtn')) $('onboardingHeaderBackBtn').style.display = step === 'choose' ? 'none' : 'inline-flex';
   if (step === 'ownerPlan') syncOnboardingPlanSelection(onboardingSelectedPlan);
+  refreshPlanCardPrices();
 }
 
 function syncOnboardingPlanSelection(plan = onboardingSelectedPlan || 'professional') {
@@ -1853,6 +2234,9 @@ function validateOwnerAccountStep() {
   if (!ownerName) return showToast('Owner name is required.', 'error');
   if (!ownerPassword || ownerPassword.length < 8) return showToast('Create a password with at least 8 characters.', 'error');
   if (ownerPassword !== ownerPasswordConfirm) return showToast('Owner password confirmation does not match.', 'error');
+  if (!emailVerificationState.owner.verified || emailVerificationState.owner.email !== businessEmail) {
+    return showToast('Verify your business email before continuing.', 'error');
+  }
   showOnboardingStep('ownerBusiness');
 }
 
@@ -1929,6 +2313,7 @@ async function completeOwnerOnboarding() {
   const ownerName = $('onboardPrimaryAdmin').value.trim();
   const ownerPassword = $('onboardOwnerPassword').value;
   const ownerPasswordConfirm = $('onboardOwnerPasswordConfirm').value;
+  const promoCode = String($('onboardAffiliatePromoCode')?.value || '').trim().toUpperCase();
   const selectedPlan = onboardingSelectedPlan || 'professional';
 
   if (!companyName) {
@@ -1945,6 +2330,10 @@ async function completeOwnerOnboarding() {
   }
   if (ownerPassword && ownerPassword !== ownerPasswordConfirm) {
     showToast('Owner password confirmation does not match.', 'error');
+    return;
+  }
+  if (!emailVerificationState.owner.verified || emailVerificationState.owner.email !== businessEmail) {
+    showToast('Business email verification is required before signup.', 'error');
     return;
   }
 
@@ -1972,7 +2361,7 @@ async function completeOwnerOnboarding() {
       const response = await apiRequest('/api/auth/owner-signup', {
         method: 'POST',
         auth: false,
-        body: { email: businessEmail, ownerName, password: ownerPassword, workspace }
+        body: { email: businessEmail, ownerName, password: ownerPassword, promoCode, workspace }
       });
       backendState.workspace = response.workspace || workspace;
       DB.saveWorkspace(response.workspace || workspace);
@@ -2092,6 +2481,10 @@ function completeJoinOnboarding() {
   }
   if (!email) {
     showToast('Email is required.', 'error');
+    return;
+  }
+  if (!emailVerificationState.employee.verified || emailVerificationState.employee.email !== email) {
+    showToast('Verify your email before creating your employee account.', 'error');
     return;
   }
   if (!password) {
@@ -2253,6 +2646,8 @@ function fullName(entity) {
 }
 
 function roleLabel(role) {
+  const configuredLabel = getWorkspace()?.teamRoles?.[role]?.label;
+  if (configuredLabel) return configuredLabel;
   if (role === 'technician') return 'Technician';
   if (role === 'manager') return 'Manager';
   return 'Salesperson';
@@ -2378,16 +2773,18 @@ function canAccessPage(page) {
   if (isAdmin()) return true;
   if (!currentSession) return false;
   if (isAffiliate()) return page === 'dashboard' || page === 'affiliate-portal';
-  if (page === 'dashboard' || page === 'schedule' || page === 'team-chat') return true;
+  if (page === 'dashboard' || page === 'schedule') return true;
   if (page === 'clients') return canManageClients();
   if (page === 'bookings') return canCreateBookings() || isTechnician() || canEditAllBookings();
   if (page === 'revenue') return canViewRevenue();
   if (page === 'employees') return canManageEmployees();
   if (page === 'payroll') return canViewPayroll();
   if (page === 'owner-portal') return isAdmin();
+  if (page === 'owner-revenue') return isAdmin();
   if (page === 'affiliate-portal') return isAdmin() || isAffiliate();
   if (page === 'my-portal') return !isAdmin() && !isAffiliate();
-  if (page === 'workspace') return isAdmin();
+  if (page === 'workspace') return isAdmin() || isManager();
+  if (page === 'team-chat') return true; // all authenticated users
   return false;
 }
 
@@ -2551,8 +2948,9 @@ function navigateTo(page) {
     'owner-portal': 'Owner Portal',
     'affiliate-portal': 'Affiliate Portal',
     'my-portal': 'My Portal',
-    'team-chat': 'Team Chat',
-    workspace: 'Workspace'
+    workspace: 'Settings',
+    'owner-revenue': 'Revenue Forecast',
+    'team-chat': 'Team Chat'
   };
   $('pageTitle').textContent = titles[page] || page;
 
@@ -2564,167 +2962,77 @@ function navigateTo(page) {
   if (page === 'employees') renderEmployeesTable();
   if (page === 'payroll') renderPayrollPage();
   if (page === 'owner-portal') renderOwnerPortalPage();
+  if (page === 'owner-revenue') renderOwnerRevenuePage();
   if (page === 'affiliate-portal') renderAffiliatePortalPage();
   if (page === 'my-portal') renderMyPortalPage();
-  if (page === 'team-chat') renderTeamChatPage();
   if (page === 'workspace') renderWorkspacePage();
+  if (page === 'team-chat') renderTeamChatPage();
 
   if (window.innerWidth <= 768) $('sidebar').classList.remove('open');
 }
 
 // ─── DASHBOARD ───────────────────────────────────────────────
-// ─── TEAM CHAT ──────────────────────────────────────────────
-async function loadChannels() {
-  if (!backendState.available || !backendState.token) return;
-  try {
-    const response = await apiRequest('/api/channels');
-    channels = response.channels || [];
-    return channels;
-  } catch {
-    return [];
-  }
-}
 
-async function loadChannelMessages(channelId) {
-  if (!backendState.available || !backendState.token) return;
-  try {
-    const response = await apiRequest(`/api/channels/${channelId}/messages`);
-    channelMessages = response.messages || [];
-    return channelMessages;
-  } catch {
-    return [];
-  }
-}
+function renderOwnerRevenuePage() {
+  const summary = $('ownerRevenueSummary');
+  const chart = $('ownerRevenueChart');
+  if (!summary || !chart) return;
 
-async function sendChatMessage(channelId, message) {
-  if (!backendState.available || !backendState.token) {
-    showToast('Backend unavailable.', 'error');
-    return;
+  const now = new Date();
+  const monthLabels = [];
+  const monthRevenue = [];
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const value = DB.payments
+      .filter(payment => payment.status === 'paid')
+      .filter(payment => {
+        const pDate = toDateObj(payment.date);
+        return pDate.getFullYear() === d.getFullYear() && pDate.getMonth() === d.getMonth();
+      })
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    monthLabels.push(label);
+    monthRevenue.push(value);
   }
-  try {
-    const response = await apiRequest(`/api/channels/${channelId}/messages`, {
-      method: 'POST',
-      body: { message }
-    });
-    return response.message;
-  } catch (err) {
-    showToast(err.message || 'Failed to send message.', 'error');
-    return null;
-  }
-}
 
-async function createChannel(name, description, channelType) {
-  if (!backendState.available || !backendState.token) {
-    showToast('Backend unavailable.', 'error');
-    return;
-  }
-  if (!isAdmin()) {
-    showToast('Only admins can create channels.', 'error');
-    return;
-  }
-  try {
-    const response = await apiRequest('/api/channels', {
-      method: 'POST',
-      body: { name, description, channelType }
-    });
-    return response.channel;
-  } catch (err) {
-    showToast(err.message || 'Failed to create channel.', 'error');
-    return null;
-  }
-}
+  const currentMonthRevenue = monthRevenue[monthRevenue.length - 1] || 0;
+  const previousMonthRevenue = monthRevenue[monthRevenue.length - 2] || 0;
+  const trendPercent = previousMonthRevenue > 0
+    ? Math.round(((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100)
+    : (currentMonthRevenue > 0 ? 100 : 0);
 
-async function deleteChannel(channelId) {
-  if (!backendState.available || !backendState.token) return;
-  if (!isAdmin()) {
-    showToast('Only admins can delete channels.', 'error');
-    return;
-  }
-  try {
-    await apiRequest(`/api/channels/${channelId}`, { method: 'DELETE' });
-    return true;
-  } catch {
-    return false;
-  }
-}
+  const openPipeline = DB.bookings
+    .filter(booking => ['booked', 'pending'].includes(String(booking.status || '').toLowerCase()))
+    .reduce((sum, booking) => sum + Number(booking.amount || 0), 0);
 
-function renderChannelsList() {
-  const container = $('channelsList');
-  if (!container || !channels.length) return;
-  
-  container.innerHTML = channels.map(ch => {
-    const isActive = currentChannel && currentChannel.id === ch.id;
+  const completedThisMonth = DB.bookings.filter(booking => {
+    if (String(booking.status || '').toLowerCase() !== 'completed') return false;
+    if (!booking.completedAt) return false;
+    const completedDate = new Date(booking.completedAt);
+    return completedDate.getFullYear() === now.getFullYear() && completedDate.getMonth() === now.getMonth();
+  }).length;
+
+  const minPayout = Number(getWorkspace().growth?.affiliateMinPayout || 0);
+  const payoutReady = workspaceAffiliates().filter(affiliate => Number(affiliate.payoutDue || 0) >= minPayout && Number(affiliate.payoutDue || 0) > 0).length;
+
+  summary.innerHTML = `
+    <div class="workspace-list-item"><div><strong>This Month</strong><span>${fmt(currentMonthRevenue)} collected revenue.</span></div><span class="pill-tag">${trendPercent >= 0 ? '+' : ''}${trendPercent}%</span></div>
+    <div class="workspace-list-item"><div><strong>Estimated Pipeline</strong><span>${fmt(openPipeline)} in pending/booked jobs.</span></div><span class="pill-tag">Live</span></div>
+    <div class="workspace-list-item"><div><strong>Delivery Progress</strong><span>${completedThisMonth} jobs completed this month.</span></div><span class="pill-tag">Ops</span></div>
+    <div class="workspace-list-item"><div><strong>Affiliate Payout Ready</strong><span>${payoutReady} partner${payoutReady === 1 ? '' : 's'} at or above payout minimum.</span></div><span class="pill-tag">Queue</span></div>
+  `;
+
+  const maxValue = Math.max(1, ...monthRevenue);
+  chart.innerHTML = monthRevenue.map((value, idx) => {
+    const height = Math.max(6, Math.round((value / maxValue) * 100));
     return `
-      <button class="channel-item${isActive ? ' active' : ''}" data-channel-id="${ch.id}" type="button">
-        <i class="fas fa-hashtag"></i> ${ch.name}
-      </button>
+      <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;width:72px;">
+        <div style="width:48px;height:${height}px;background:linear-gradient(180deg,#60a5fa,#22d3ee);border-radius:10px 10px 6px 6px;"></div>
+        <span style="font-size:12px;color:var(--text-secondary)">${monthLabels[idx]}</span>
+        <strong style="font-size:11px;color:var(--text-primary)">${fmt(value)}</strong>
+      </div>
     `;
   }).join('');
-}
-
-function renderChatMessages() {
-  const container = $('messagesArea');
-  if (!container) return;
-  
-  if (!channelMessages.length) {
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-comment-slash"></i><p>No messages yet.</p></div>';
-    return;
-  }
-
-  container.innerHTML = channelMessages.map(msg => `
-    <div class="chat-message">
-      <div class="message-header">
-        <strong>${msg.name || 'User'}</strong>
-        <span class="message-time">${new Date(msg.created_at).toLocaleTimeString()}</span>
-      </div>
-      <p>${msg.message}</p>
-    </div>
-  `).join('');
-
-  container.scrollTop = container.scrollHeight;
-}
-
-async function selectChannel(channelId) {
-  const channel = channels.find(c => c.id === channelId);
-  if (!channel) return;
-  
-  currentChannel = channel;
-  $('chatChannelName').textContent = `# ${channel.name}`;
-  $('chatChannelDesc').textContent = channel.description || '';
-  
-  await loadChannelMessages(channelId);
-  renderChannelsList();
-  renderChatMessages();
-}
-
-async function renderTeamChatPage() {
-  if (!backendState.available || !backendState.token) {
-    showToast('Backend unavailable for chat.', 'info');
-    return;
-  }
-
-  await loadChannels();
-  
-  const showChannelManagerBtn = $('showChannelManagerBtn');
-  if (showChannelManagerBtn) {
-    showChannelManagerBtn.style.display = isAdmin() ? 'inline-block' : 'none';
-  }
-
-  const createChannelBtn = $('createChannelBtn');
-  if (createChannelBtn) {
-    createChannelBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
-  }
-
-  $('chatInput').style.display = 'block';
-  $('sendChatBtn').style.display = 'inline-block';
-
-  renderChannelsList();
-
-  if (channels.length && !currentChannel) {
-    await selectChannel(channels[0].id);
-  } else if (currentChannel) {
-    await selectChannel(currentChannel.id);
-  }
 }
 
 function renderDashboard() {
@@ -3689,6 +3997,15 @@ function openPublicBookingModal() {
   $('pubTime').value = '10:00';
   $('pubDuration').value = '60';
   $('pubNotes').value = '';
+  const managerQuestions = (getWorkspace().teamRoles?.manager?.bookingQuestions || []).filter(Boolean).slice(0, 10);
+  if ($('publicBookingCustomQuestions')) {
+    $('publicBookingCustomQuestions').innerHTML = managerQuestions.map((question, idx) => `
+      <div class="form-group">
+        <label>${question}</label>
+        <input type="text" id="pubCustomQuestion${idx}" placeholder="Your answer" />
+      </div>
+    `).join('');
+  }
   openModal('publicBookingModal');
 }
 
@@ -3727,6 +4044,11 @@ function submitPublicBooking() {
   const bookings = DB.bookings;
   const salesmen = DB.employees.filter(e => e.role === 'salesman' && e.status === 'active');
   const workspace = getWorkspace();
+  const managerQuestions = (workspace.teamRoles?.manager?.bookingQuestions || []).filter(Boolean).slice(0, 10);
+  const customQuestionResponses = managerQuestions.map((question, idx) => ({
+    question,
+    answer: String($(`pubCustomQuestion${idx}`)?.value || '').trim()
+  })).filter(entry => entry.answer);
   const nextSalesmanId = workspace.scheduling.roundRobinRouting && salesmen.length
     ? salesmen[bookings.length % salesmen.length].id
     : (salesmen.length ? salesmen[0].id : null);
@@ -3746,6 +4068,7 @@ function submitPublicBooking() {
     status: workspace.scheduling.autoConfirm ? 'confirmed' : 'booked',
     location: '',
     notes: $('pubNotes').value.trim(),
+    customQuestionResponses,
     completedAt: null,
     completedById: null,
     createdAt: today()
@@ -4825,6 +5148,7 @@ async function handleLogin() {
   const email = normalizeEmail($('loginEmail').value);
   const password = $('loginPassword').value;
   const rememberMe = Boolean($('loginRemember')?.checked);
+  setRememberPreference(rememberMe);
 
   if (!email || !password) {
     showToast('Email and password are required.', 'error');
@@ -4900,6 +5224,8 @@ async function handleLogin() {
       return;
     }
   }
+
+  setLastLoginEmail(email);
 
   hideAuthScreen();
   $('loginPassword').value = '';
@@ -5037,6 +5363,8 @@ async function saveAccountCredentials() {
     renderAffiliatePortalPage();
   }
 
+  setLastLoginEmail(currentSession.email);
+
   closeModal('accountModal');
   showToast('Account credentials updated.');
 }
@@ -5060,7 +5388,11 @@ async function resetPasswordByEmail(emailInput, silent = false) {
         auth: false,
         body: { email }
       });
-      if (!silent) showToast(`Password reset to: ${response.temporaryPassword}`);
+      if (!silent) {
+        if ($('loginPassword') && response.temporaryPassword) $('loginPassword').value = response.temporaryPassword;
+        if ($('loginEmail')) $('loginEmail').value = email;
+        showToast(`Password reset to: ${response.temporaryPassword}`);
+      }
       return true;
     } catch (error) {
       if (!silent) showToast(error.message || 'Unable to reset password.', 'error');
@@ -5077,14 +5409,19 @@ async function resetPasswordByEmail(emailInput, silent = false) {
 
   users[i].passwordHash = hashPassword('password123');
   DB.saveUsers(users);
-  if (!silent) showToast('Password reset to: password123');
+  if (!silent) {
+    if ($('loginPassword')) $('loginPassword').value = 'password123';
+    if ($('loginEmail')) $('loginEmail').value = email;
+    showToast('Password reset to: password123');
+  }
   return true;
 }
 
 async function initAuth() {
   seedAdminAccount();
   currentSession = getSession();
-  if ($('loginRemember')) $('loginRemember').checked = isRememberedLogin();
+  if ($('loginRemember')) $('loginRemember').checked = getRememberPreference();
+  if ($('loginEmail') && !$('loginEmail').value) $('loginEmail').value = getLastLoginEmail();
   syncWorkspaceBranding();
 
   if (currentSession && backendState.available && backendState.token) {
@@ -5145,9 +5482,9 @@ function logout() {
   clearSession();
   setBackendToken('');
   sessionStorage.removeItem(INSTALL_PROMPT_STORAGE_KEYS.sessionShown);
-  $('loginEmail').value = '';
+  $('loginEmail').value = getLastLoginEmail();
   $('loginPassword').value = '';
-  if ($('loginRemember')) $('loginRemember').checked = false;
+  if ($('loginRemember')) $('loginRemember').checked = getRememberPreference();
   closeModal('onboardingOverlay');
   showAuthScreen('authViewLanding');
   applyRolePermissions();
@@ -5272,65 +5609,138 @@ document.addEventListener('DOMContentLoaded', () => {
   if ($('markOwnerNotifReadBtn')) $('markOwnerNotifReadBtn').addEventListener('click', markAllNotificationsRead);
   if ($('saveTemplateBtn')) $('saveTemplateBtn').addEventListener('click', saveNotificationTemplates);
   $('saveWorkspaceBtn').addEventListener('click', saveWorkspaceSettings);
-
-  // Team Chat listeners
-  if ($('sendChatBtn')) {
-    $('sendChatBtn').addEventListener('click', async () => {
-      const input = $('chatInput');
-      const msg = input.value.trim();
-      if (!msg || !currentChannel) return;
-      const sent = await sendChatMessage(currentChannel.id, msg);
-      if (sent) {
-        input.value = '';
-        await loadChannelMessages(currentChannel.id);
-        renderChatMessages();
-      }
-    });
-  }
-
-  if ($('chatInput')) {
-    $('chatInput').addEventListener('keypress', e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        $('sendChatBtn').click();
-      }
-    });
-  }
-
-  if ($('channelsList')) {
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('.channel-item');
-      if (btn) selectChannel(Number(btn.dataset.channelId));
-    });
-  }
-
-  if ($('createChannelBtn')) {
-    $('createChannelBtn').addEventListener('click', () => openModal('createChannelModal'));
-  }
-
-  if ($('saveNewChannelBtn')) {
-    $('saveNewChannelBtn').addEventListener('click', async () => {
-      const name = $('newChannelName').value.trim();
-      const desc = $('newChannelDesc').value.trim();
-      const type = $('newChannelType').value || 'public';
-      if (!name) {
-        showToast('Channel name is required.', 'error');
+  if ($('workspaceSendOldEmailCodeBtn')) {
+    $('workspaceSendOldEmailCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('workspaceCurrentEmailVerificationTarget')?.value || getWorkspace().businessEmail || '');
+      if (!email) {
+        showToast('Current business email is required.', 'error');
         return;
       }
-      const ch = await createChannel(name, desc, type);
-      if (ch) {
-        closeModal('createChannelModal');
-        $('newChannelName').value = '';
-        $('newChannelDesc').value = '';
-        await loadChannels();
-        renderChannelsList();
-        showToast(`Channel #${ch.name} created.`, 'success');
+      const sent = await sendEmailVerificationCode(email, 'workspace-email-old');
+      if (sent) {
+        workspaceEmailVerificationState.oldEmail = email;
+        workspaceEmailVerificationState.oldVerified = false;
       }
     });
   }
 
-  if ($('showChannelManagerBtn')) {
-    $('showChannelManagerBtn').addEventListener('click', () => openModal('channelManagerModal'));
+  if ($('workspaceVerifyOldEmailCodeBtn')) {
+    $('workspaceVerifyOldEmailCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('workspaceCurrentEmailVerificationTarget')?.value || '');
+      const code = String($('workspaceOldEmailVerificationCode')?.value || '').trim();
+      if (!email || !code) {
+        showToast('Enter current email and code.', 'error');
+        return;
+      }
+      const ok = await verifyEmailCode(email, code, 'workspace-email-old', 'owner');
+      if (ok) {
+        workspaceEmailVerificationState.oldEmail = email;
+        workspaceEmailVerificationState.oldVerified = true;
+      }
+    });
+  }
+
+  if ($('workspaceSendNewEmailCodeBtn')) {
+    $('workspaceSendNewEmailCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('workspaceNewEmailVerificationTarget')?.value || $('workspaceBusinessEmail')?.value || '');
+      if (!email) {
+        showToast('New business email is required.', 'error');
+        return;
+      }
+      const sent = await sendEmailVerificationCode(email, 'workspace-email-new');
+      if (sent) {
+        workspaceEmailVerificationState.newEmail = email;
+        workspaceEmailVerificationState.newVerified = false;
+      }
+    });
+  }
+
+  if ($('workspaceVerifyNewEmailCodeBtn')) {
+    $('workspaceVerifyNewEmailCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('workspaceNewEmailVerificationTarget')?.value || $('workspaceBusinessEmail')?.value || '');
+      const code = String($('workspaceNewEmailVerificationCode')?.value || '').trim();
+      if (!email || !code) {
+        showToast('Enter new email and code.', 'error');
+        return;
+      }
+      const ok = await verifyEmailCode(email, code, 'workspace-email-new', 'owner');
+      if (ok) {
+        workspaceEmailVerificationState.newEmail = email;
+        workspaceEmailVerificationState.newVerified = true;
+      }
+    });
+  }
+
+  if ($('onboardOwnerSendVerificationBtn')) {
+    $('onboardOwnerSendVerificationBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('onboardBusinessEmail')?.value || '');
+      if (!email) {
+        showToast('Enter a business email first.', 'error');
+        return;
+      }
+      const sent = await sendEmailVerificationCode(email, 'owner-signup');
+      if (sent) emailVerificationState.owner = { email, verified: false };
+    });
+  }
+
+  if ($('onboardOwnerVerifyCodeBtn')) {
+    $('onboardOwnerVerifyCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('onboardBusinessEmail')?.value || '');
+      const code = String($('onboardOwnerVerificationCode')?.value || '').trim();
+      if (!email || !code) {
+        showToast('Enter business email and verification code.', 'error');
+        return;
+      }
+      await verifyEmailCode(email, code, 'owner-signup', 'owner');
+    });
+  }
+
+  if ($('onboardJoinSendVerificationBtn')) {
+    $('onboardJoinSendVerificationBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('onboardJoinEmail')?.value || '');
+      if (!email) {
+        showToast('Enter employee email first.', 'error');
+        return;
+      }
+      const sent = await sendEmailVerificationCode(email, 'employee-signup');
+      if (sent) emailVerificationState.employee = { email, verified: false };
+    });
+  }
+
+  if ($('onboardJoinVerifyCodeBtn')) {
+    $('onboardJoinVerifyCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('onboardJoinEmail')?.value || '');
+      const code = String($('onboardJoinVerificationCode')?.value || '').trim();
+      if (!email || !code) {
+        showToast('Enter employee email and verification code.', 'error');
+        return;
+      }
+      await verifyEmailCode(email, code, 'employee-signup', 'employee');
+    });
+  }
+
+  if ($('affiliateSendVerificationBtn')) {
+    $('affiliateSendVerificationBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('affiliateSignupEmail')?.value || '');
+      if (!email) {
+        showToast('Enter affiliate email first.', 'error');
+        return;
+      }
+      const sent = await sendEmailVerificationCode(email, 'affiliate-signup');
+      if (sent) emailVerificationState.affiliate = { email, verified: false };
+    });
+  }
+
+  if ($('affiliateVerifyCodeBtn')) {
+    $('affiliateVerifyCodeBtn').addEventListener('click', async () => {
+      const email = normalizeEmail($('affiliateSignupEmail')?.value || '');
+      const code = String($('affiliateSignupVerificationCode')?.value || '').trim();
+      if (!email || !code) {
+        showToast('Enter affiliate email and verification code.', 'error');
+        return;
+      }
+      await verifyEmailCode(email, code, 'affiliate-signup', 'affiliate');
+    });
   }
   
   // Notification preference listeners
@@ -5368,7 +5778,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if ($('mobileInstallAppBtn')) $('mobileInstallAppBtn').addEventListener('click', async () => {
     await installWebApp();
     if (/iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
-      showToast('Use Share then Add to Home Screen to install ProCRM on iPhone.', 'info');
+      showToast('Use Share then Add to Home Screen to install Service Mafia on iPhone.', 'info');
     }
     if (isStandaloneMode()) setSavedInstallChoice('installed');
     closeModal('mobileInstallPromptModal');
@@ -5415,6 +5825,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = $(`plan${plan.charAt(0).toUpperCase() + plan.slice(1)}`);
     if (btn) btn.addEventListener('click', () => selectWorkspacePlan(plan));
   });
+  if ($('workspaceBillingCycle')) $('workspaceBillingCycle').addEventListener('change', refreshPlanCardPrices);
+  if ($('onboardBillingCycle')) $('onboardBillingCycle').addEventListener('change', refreshPlanCardPrices);
 
   $('notifBtn').addEventListener('click', () => {
     if (!currentSession) return;
@@ -5456,13 +5868,42 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   $('logoutBtn').addEventListener('click', logout);
 
+  if ($('workspaceBusinessEmail')) {
+    $('workspaceBusinessEmail').addEventListener('input', () => {
+      if ($('workspaceNewEmailVerificationTarget')) {
+        $('workspaceNewEmailVerificationTarget').value = normalizeEmail($('workspaceBusinessEmail').value || '');
+      }
+      workspaceEmailVerificationState.newVerified = false;
+    });
+  }
+
+  if ($('onboardBusinessEmail')) {
+    $('onboardBusinessEmail').addEventListener('input', () => {
+      emailVerificationState.owner = { email: '', verified: false };
+    });
+  }
+
+  if ($('onboardJoinEmail')) {
+    $('onboardJoinEmail').addEventListener('input', () => {
+      emailVerificationState.employee = { email: '', verified: false };
+    });
+  }
+
+  if ($('affiliateSignupEmail')) {
+    $('affiliateSignupEmail').addEventListener('input', () => {
+      emailVerificationState.affiliate = { email: '', verified: false };
+    });
+  }
+
   refreshClientDropdowns();
   refreshEmployeeDropdowns();
   renderServiceSuggestions();
   renderWorkspacePage();
+  refreshPlanCardPrices();
   syncCompletedJobsToRevenue();
   loadTemplateEditors();
   registerServiceWorker();
+  initTeamChatListeners();
   window.addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
     deferredInstallPrompt = event;
@@ -5481,6 +5922,174 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
 });
   
+// ─── TEAM CHAT ───────────────────────────────────────────
+
+let _chatChannels = [];
+let _currentChannelId = null;
+
+async function renderTeamChatPage() {
+  // Show/hide admin controls
+  const adminControls = $('chatAdminControls');
+  if (adminControls) adminControls.style.display = isAdmin() ? 'flex' : 'none';
+  const deleteBtn = $('deleteChannelBtn');
+  if (deleteBtn) deleteBtn.style.display = 'none';
+
+  try {
+    const data = await apiRequest('/api/channels');
+    _chatChannels = data.channels || [];
+  } catch {
+    _chatChannels = [];
+  }
+
+  _renderChannelsList();
+
+  // Auto-select first channel
+  if (_chatChannels.length && !_currentChannelId) {
+    await _selectChannel(_chatChannels[0].id);
+  } else if (_currentChannelId) {
+    await _selectChannel(_currentChannelId);
+  }
+}
+
+function _renderChannelsList() {
+  const list = $('channelsList');
+  if (!list) return;
+  if (!_chatChannels.length) {
+    list.innerHTML = '<div style="padding:12px 16px;color:var(--text-secondary);font-size:13px;">No channels yet</div>';
+    return;
+  }
+  list.innerHTML = _chatChannels.map(ch => `
+    <div class="channel-item${_currentChannelId === ch.id ? ' active' : ''}" data-channel-id="${ch.id}">
+      <span class="channel-hash">#</span>${escapeHtml(ch.name)}
+    </div>
+  `).join('');
+  list.querySelectorAll('.channel-item').forEach(el => {
+    el.addEventListener('click', () => _selectChannel(Number(el.dataset.channelId)));
+  });
+}
+
+async function _selectChannel(channelId) {
+  _currentChannelId = channelId;
+  const ch = _chatChannels.find(c => c.id === channelId);
+
+  // Update header
+  const nameEl = $('chatChannelName');
+  const descEl = $('chatChannelDesc');
+  const deleteBtn = $('deleteChannelBtn');
+  const composer = $('chatComposer');
+
+  if (nameEl) nameEl.textContent = ch ? `#${ch.name}` : 'Channel';
+  if (descEl) descEl.textContent = ch?.description || '';
+  if (deleteBtn) deleteBtn.style.display = isAdmin() && ch ? 'inline-flex' : 'none';
+  if (composer) composer.style.display = 'flex';
+
+  // Highlight active channel
+  _renderChannelsList();
+
+  // Load messages
+  const area = $('messagesArea');
+  if (!area) return;
+  area.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i></div>';
+
+  try {
+    const data = await apiRequest(`/api/channels/${channelId}/messages`);
+    const messages = data.messages || [];
+    if (!messages.length) {
+      area.innerHTML = '<div class="empty-state"><i class="fas fa-comments"></i><p>No messages yet. Say hello!</p></div>';
+      return;
+    }
+    area.innerHTML = messages.map(m => {
+      const isOwn = m.user_id === currentSession?.id;
+      const author = m.name || m.email || 'User';
+      const time = m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      return `<div class="chat-message${isOwn ? ' own' : ''}">
+        <div class="message-header">
+          <span class="message-author">${escapeHtml(author)}</span>
+          <span class="message-time">${time}</span>
+        </div>
+        <div class="message-text">${escapeHtml(m.message)}</div>
+      </div>`;
+    }).join('');
+    area.scrollTop = area.scrollHeight;
+  } catch (e) {
+    area.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Could not load messages</p></div>`;
+  }
+}
+
+async function _sendChatMessage() {
+  if (!_currentChannelId) return;
+  const input = $('chatInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  input.value = '';
+  const area = $('messagesArea');
+  try {
+    await apiRequest(`/api/channels/${_currentChannelId}/messages`, 'POST', { message: text });
+    // Reload messages
+    await _selectChannel(_currentChannelId);
+  } catch (e) {
+    showToast('Failed to send message', 'error');
+    if (input) input.value = text;
+  }
+}
+
+async function _createChannel() {
+  const name = $('newChannelName')?.value?.trim();
+  const desc = $('newChannelDesc')?.value?.trim();
+  const type = $('newChannelType')?.value || 'public';
+  if (!name) { showToast('Channel name is required', 'error'); return; }
+  try {
+    const data = await apiRequest('/api/channels', 'POST', { name, description: desc, channelType: type });
+    _chatChannels.push(data.channel);
+    closeModal('createChannelModal');
+    if ($('newChannelName')) $('newChannelName').value = '';
+    if ($('newChannelDesc')) $('newChannelDesc').value = '';
+    await _selectChannel(data.channel.id);
+    showToast(`#${data.channel.name} created`, 'success');
+  } catch (e) {
+    showToast(e?.message || 'Failed to create channel', 'error');
+  }
+}
+
+async function _deleteChannel() {
+  if (!_currentChannelId) return;
+  const ch = _chatChannels.find(c => c.id === _currentChannelId);
+  if (!ch) return;
+  if (!confirm(`Delete #${ch.name} and all its messages?`)) return;
+  try {
+    await apiRequest(`/api/channels/${_currentChannelId}`, 'DELETE');
+    _chatChannels = _chatChannels.filter(c => c.id !== _currentChannelId);
+    _currentChannelId = null;
+    showToast('Channel deleted', 'success');
+    await renderTeamChatPage();
+  } catch (e) {
+    showToast('Failed to delete channel', 'error');
+  }
+}
+
+// Team chat event wiring (called from DOMContentLoaded)
+function initTeamChatListeners() {
+  const sendBtn = $('sendChatBtn');
+  const input = $('chatInput');
+  const createBtn = $('createChannelBtn');
+  const saveBtn = $('saveChannelBtn');
+  const deleteBtn = $('deleteChannelBtn');
+
+  if (sendBtn) sendBtn.addEventListener('click', _sendChatMessage);
+  if (input) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendChatMessage(); }
+    });
+  }
+  if (createBtn) createBtn.addEventListener('click', () => openModal('createChannelModal'));
+  if (saveBtn) saveBtn.addEventListener('click', _createChannel);
+  if (deleteBtn) deleteBtn.addEventListener('click', _deleteChannel);
+}
+
+function escapeHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ─── Theme Mode (Dark Only) ──────────────────────────────
 function initTheme() {
   document.documentElement.setAttribute('data-theme', 'dark');

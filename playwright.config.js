@@ -10,6 +10,9 @@ export default defineConfig({
     baseURL: 'http://localhost:8080',
     headless: true,
     viewport: { width: 1440, height: 900 },
+    launchOptions: {
+      args: ['--disable-dev-shm-usage'],
+    },
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

@@ -33,7 +33,15 @@ async function isVisibleNow(page, selector) {
   }, selector);
 }
 
-async function completeOnboardingIfVisible(page) {
+async function fetchVerificationCode(request, email, purpose) {
+  const sendResponse = await request.post('/api/auth/send-verification-code', {
+    data: { email, purpose },
+  });
+  const sendJson = await sendResponse.json();
+  return sendJson?.devCode || '';
+}
+
+async function completeOnboardingIfVisible(page, request) {
   const onboarding = page.locator('#onboardingOverlay');
   const count = await onboarding.count();
   if (count === 0) return;
@@ -45,6 +53,13 @@ async function completeOnboardingIfVisible(page) {
   }
   await expect(page.locator('#onboardBusinessEmail')).toBeVisible();
   await page.locator('#onboardBusinessEmail').fill('owner@e2e.company');
+  const ownerCode = await fetchVerificationCode(request, 'owner@e2e.company', 'owner-signup');
+  if (ownerCode && await isVisibleNow(page, '#onboardOwnerVerificationCode')) {
+    await page.locator('#onboardOwnerVerificationCode').fill(ownerCode);
+  }
+  if (await isVisibleNow(page, '#onboardOwnerVerifyCodeBtn')) {
+    await page.locator('#onboardOwnerVerifyCodeBtn').click();
+  }
   if (await isVisibleNow(page, '#onboardPrimaryAdmin')) {
     await page.locator('#onboardPrimaryAdmin').fill('E2E Owner');
   }
@@ -99,7 +114,7 @@ async function loginIfNeeded(page, request) {
 
   await page.goto('/');
   await waitForAuthBootstrap(page);
-  await completeOnboardingIfVisible(page);
+  await completeOnboardingIfVisible(page, request);
 
   const authScreen = page.locator('#authScreen');
   const authVisible = await authScreen.isVisible();
@@ -121,13 +136,13 @@ async function loginIfNeeded(page, request) {
     }
   }
 
-  await completeOnboardingIfVisible(page);
+  await completeOnboardingIfVisible(page, request);
   await expect.poll(async () => page.evaluate(() => Boolean(sessionStorage.getItem('crm_session') || localStorage.getItem('crm_session')))).toBe(true);
   await expect(authScreen).toHaveClass(/hidden/);
   await expectPostLoginPage(page);
 }
 
-test.describe('ProCRM Full Feature Smoke Coverage', () => {
+test.describe('Service Mafia Full Feature Smoke Coverage', () => {
   test('auth entry points and onboarding entry work', async ({ page, request }) => {
     await seedWorkspace(request, { onboarded: false });
     await page.goto('/');
@@ -143,7 +158,7 @@ test.describe('ProCRM Full Feature Smoke Coverage', () => {
     }
     await expect(page.locator('#onboardingOverlay')).toHaveClass(/open/);
 
-    await completeOnboardingIfVisible(page);
+    await completeOnboardingIfVisible(page, request);
     await expect.poll(async () => page.evaluate(() => document.documentElement.getAttribute('data-theme') || 'dark')).toBe('dark');
   });
 
@@ -219,9 +234,9 @@ test.describe('ProCRM Full Feature Smoke Coverage', () => {
       'payroll',
       'owner-portal',
       'affiliate-portal',
-      'my-portal',
-      'team-chat',
+      'owner-revenue',
       'workspace',
+      'team-chat',
     ];
 
     for (const pageKey of pages) {
