@@ -26,13 +26,16 @@ self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
   const isSameOrigin = requestUrl.origin === self.location.origin;
   const isNavigation = event.request.mode === 'navigate';
+  const isApiRequest = isSameOrigin && requestUrl.pathname.startsWith('/api/');
   const isShellAsset = isSameOrigin && APP_SHELL.some(path => {
     const normalized = path.startsWith('/') ? path : `/${path}`;
     return requestUrl.pathname === normalized || requestUrl.pathname.endsWith(normalized);
   });
 
-  // Prefer fresh HTML/CSS/JS for app shell, then fall back to cache.
-  if (isNavigation || isShellAsset) {
+  // Let the browser handle cross-origin assets and API traffic normally.
+  if (!isSameOrigin || isApiRequest) return;
+
+  if (isNavigation) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
@@ -42,7 +45,28 @@ self.addEventListener('fetch', event => {
           }
           return response;
         })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match('index.html')))
+        .catch(async () => {
+          const cachedPage = await caches.match(event.request);
+          return cachedPage || caches.match('/') || caches.match('index.html');
+        })
+    );
+    return;
+  }
+
+  if (isShellAsset) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        const networkFetch = fetch(event.request)
+          .then(response => {
+            if (response && response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            }
+            return response;
+          })
+          .catch(() => cached);
+        return cached || networkFetch;
+      })
     );
     return;
   }
@@ -54,7 +78,7 @@ self.addEventListener('fetch', event => {
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match('index.html')))
+    }))
   );
 });
 
