@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
-<body>
+<body class="auth-screen-active">
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -35,6 +35,9 @@
     <a href="#" class="nav-item" data-page="schedule">
       <i class="fas fa-calendar-alt"></i><span>Schedule</span>
     </a>
+    <a href="#" class="nav-item" data-page="quotes">
+      <i class="fas fa-file-signature"></i><span>Quotes</span>
+    </a>
     <a href="#" class="nav-item" data-page="revenue">
       <i class="fas fa-dollar-sign"></i><span>Revenue</span>
     </a>
@@ -49,12 +52,6 @@
     </a>
     <a href="#" class="nav-item" data-page="owner-revenue">
       <i class="fas fa-chart-column"></i><span>Revenue Forecast</span>
-    </a>
-    <a href="#" class="nav-item" data-page="affiliate-portal">
-      <i class="fas fa-handshake-angle"></i><span>Affiliate Portal</span>
-    </a>
-    <a href="#" class="nav-item" data-page="team-chat">
-      <i class="fas fa-comments"></i><span>Team Chat</span>
     </a>
     <a href="#" class="nav-item" data-page="my-portal">
       <i class="fas fa-id-badge"></i><span>My Portal</span>
@@ -284,31 +281,83 @@
     </div>
   </section>
 
+  <section class="page" id="page-quotes">
+    <div class="page-header">
+      <h1>Quotes</h1>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>Create Advanced Quote</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Client</label>
+            <select id="quoteClient">
+              <option value="">Select a client...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quote Title</label>
+            <input type="text" id="quoteTitle" placeholder="Exterior + Interior Service Quote" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:2;">
+            <label>Line Items (one per line: Description|Qty|Rate)</label>
+            <textarea id="quoteItems" rows="5" placeholder="Exterior Window Cleaning|1|220&#10;Screen Cleaning|1|60"></textarea>
+          </div>
+          <div class="form-group" style="max-width:220px;">
+            <label>Tax %</label>
+            <input type="number" id="quoteTax" min="0" step="0.1" value="0" />
+            <label style="margin-top:12px;">Notes</label>
+            <textarea id="quoteNotes" rows="3" placeholder="Optional scope notes"></textarea>
+          </div>
+        </div>
+        <div class="workspace-inline-actions">
+          <button class="btn-primary" id="saveQuoteBtn"><i class="fas fa-floppy-disk"></i> Save Quote</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-20">
+      <div class="card-header">
+        <h3>Saved Quotes</h3>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="quotesTable">
+          <thead>
+            <tr>
+              <th>Quote ID</th>
+              <th>Client</th>
+              <th>Title</th>
+              <th>Items</th>
+              <th>Subtotal</th>
+              <th>Tax</th>
+              <th>Total</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="quotesBody"></tbody>
+        </table>
+        <div class="table-empty" id="quotesEmpty">
+          <i class="fas fa-file-signature"></i>
+          <p>No quotes yet. Build your first quote above.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- REVENUE PAGE -->
   <section class="page" id="page-revenue">
     <div class="page-header">
       <h1>Revenue</h1>
       <div class="header-controls">
-        <button class="btn-secondary" id="exportRevenueBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
         <button class="btn-primary" id="addPaymentBtn"><i class="fas fa-plus"></i> Record Payment</button>
       </div>
     </div>
 
     <div class="stats-grid">
-      <div class="stat-card accent-purple">
-        <div class="stat-icon"><i class="fas fa-sun"></i></div>
-        <div class="stat-info">
-          <span class="stat-label">Daily Revenue</span>
-          <span class="stat-value" id="dailyRevenue">$0</span>
-        </div>
-      </div>
-      <div class="stat-card accent-orange">
-        <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
-        <div class="stat-info">
-          <span class="stat-label">Weekly Revenue</span>
-          <span class="stat-value" id="weeklyRevenue">$0</span>
-        </div>
-      </div>
       <div class="stat-card accent-green">
         <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
         <div class="stat-info">
@@ -522,23 +571,39 @@
       </div>
       <div class="card">
         <div class="card-header">
-          <h3>Launch Readiness</h3>
+          <h3>Growth Planner</h3>
         </div>
-        <div class="card-body" id="ownerPortalLaunchList">
-          <div class="empty-state"><i class="fas fa-rocket"></i><p>Launch checks will appear here.</p></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Current Monthly Revenue</label>
+              <input type="number" id="ownerGrowthCurrentRevenue" min="0" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Target Monthly Revenue</label>
+              <input type="number" id="ownerGrowthTargetRevenue" min="0" step="1" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monthly Growth Rate (%)</label>
+              <input type="number" id="ownerGrowthRatePct" min="0" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>Projection Window (Months)</label>
+              <input type="number" id="ownerGrowthMonths" min="1" max="24" step="1" />
+            </div>
+          </div>
+          <div class="workspace-inline-actions">
+            <button class="btn-primary" id="ownerGrowthSaveBtn"><i class="fas fa-floppy-disk"></i> Save Growth Plan</button>
+          </div>
+          <div class="workspace-list" id="ownerGrowthSummary"></div>
+          <div class="workspace-list" id="ownerGrowthProjectionList"></div>
         </div>
       </div>
     </div>
 
     <div class="dashboard-grid">
-      <div class="card">
-        <div class="card-header">
-          <h3>Growth Snapshot</h3>
-        </div>
-        <div class="card-body" id="ownerPortalGrowthList">
-          <div class="empty-state"><i class="fas fa-chart-line"></i><p>No growth activity yet.</p></div>
-        </div>
-      </div>
       <div class="card">
         <div class="card-header">
           <h3>Quick Management Actions</h3>
@@ -547,7 +612,6 @@
           <div class="workspace-inline-actions">
             <button class="btn-secondary" id="ownerPortalGoEmployeesBtn"><i class="fas fa-user-plus"></i> Add Employee</button>
             <button class="btn-secondary" id="ownerPortalGoBookingsBtn"><i class="fas fa-calendar-plus"></i> Create Booking</button>
-            <button class="btn-secondary" id="ownerPortalGoAffiliateBtn"><i class="fas fa-handshake-angle"></i> Affiliate Portal</button>
             <button class="btn-secondary" id="ownerPortalGoWorkspaceBtn"><i class="fas fa-layer-group"></i> Workspace Settings</button>
 
           </div>
@@ -610,20 +674,6 @@
         <div class="stat-info">
           <span class="stat-label">Total Payroll Earned</span>
           <span class="stat-value" id="myPortalTotalEarned">$0.00</span>
-        </div>
-      </div>
-      <div class="stat-card accent-cyan">
-        <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-        <div class="stat-info">
-          <span class="stat-label">Current Month Estimate</span>
-          <span class="stat-value" id="myPortalMonthEstimate">$0.00</span>
-        </div>
-      </div>
-      <div class="stat-card accent-red">
-        <div class="stat-icon"><i class="fas fa-circle-dollar-to-slot"></i></div>
-        <div class="stat-info">
-          <span class="stat-label">Estimated Owed</span>
-          <span class="stat-value" id="myPortalEstimatedOwed">$0.00</span>
         </div>
       </div>
     </div>
@@ -813,13 +863,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Timezone</label>
-              <select id="workspaceTimezone">
-                <option value="America/New_York">Eastern</option>
-                <option value="America/Chicago">Central</option>
-                <option value="America/Denver">Mountain</option>
-                <option value="America/Los_Angeles">Pacific</option>
-                <option value="UTC">UTC</option>
-              </select>
+              <input type="text" value="Auto-detected from device" readonly />
             </div>
           </div>
         </div>
@@ -841,20 +885,15 @@
           </div>
         </div>
         <div class="card-body plan-grid">
-          <button class="plan-card" data-plan="free" id="planFree">
-            <span class="plan-name">Free</span>
-            <span class="plan-price" id="planFreePrice">$0/mo</span>
-            <span class="plan-copy">One user, basic CRM, public booking form, and simple reminders.</span>
-          </button>
           <button class="plan-card" data-plan="starter" id="planStarter">
             <span class="plan-name">Starter</span>
             <span class="plan-price" id="planStarterPrice">$20/mo</span>
-            <span class="plan-copy">Team access for up to 3 employees with payroll and basic controls.</span>
+            <span class="plan-copy">Team access for up to 7 employees with payroll and advanced quotes.</span>
           </button>
           <button class="plan-card" data-plan="professional" id="planProfessional">
             <span class="plan-name">Professional</span>
             <span class="plan-price" id="planProfessionalPrice">$50/mo</span>
-            <span class="plan-copy">Advanced scheduling, reporting, multiple services per booking, up to 10 employees.</span>
+            <span class="plan-copy">Advanced scheduling, reporting, and up to 15 employees.</span>
           </button>
           <button class="plan-card featured" data-plan="premium" id="planPremium">
             <span class="plan-name">Premium</span>
@@ -1100,8 +1139,8 @@
           </div>
 
           <div class="form-group">
-            <label>Manager Booking Questions (one per line)</label>
-            <textarea id="managerBookingQuestions" rows="4" placeholder="What type of service do you need?&#10;How large is the property?&#10;Any access instructions?"></textarea>
+            <label>Manager Booking Questions (one per line, add ::yesno for yes/no prompts)</label>
+            <textarea id="managerBookingQuestions" rows="4" placeholder="What type of service do you need?&#10;Is there gate access?::yesno&#10;Any access instructions?"></textarea>
           </div>
         </div>
       </div>
@@ -1297,89 +1336,48 @@
     </div>
   </section>
 
-  <!-- TEAM CHAT -->
-  <section class="page" id="page-team-chat">
-    <div class="page-header">
-      <h1>Team Chat</h1>
-      <div class="header-controls" id="chatAdminControls" style="display:none;">
-        <button class="btn-primary" id="createChannelBtn"><i class="fas fa-plus"></i> New Channel</button>
-      </div>
-    </div>
-    <div class="chat-container">
-      <aside class="chat-sidebar">
-        <div class="chat-sidebar-header">
-          <span>Channels</span>
-        </div>
-        <div class="channels-list" id="channelsList"></div>
-      </aside>
-      <div class="chat-main">
-        <div class="chat-main-header" id="chatMainHeader">
-          <span id="chatChannelName">Select a channel</span>
-          <span id="chatChannelDesc" class="chat-channel-desc"></span>
-          <button class="btn-icon btn-danger-icon" id="deleteChannelBtn" style="display:none;" title="Delete channel"><i class="fas fa-trash"></i></button>
-        </div>
-        <div class="messages-area" id="messagesArea">
-          <div class="empty-state"><i class="fas fa-comments"></i><p>Select a channel to start chatting</p></div>
-        </div>
-        <div class="chat-composer" id="chatComposer" style="display:none;">
-          <input type="text" id="chatInput" placeholder="Send a message..." autocomplete="off" />
-          <button class="btn-primary" id="sendChatBtn"><i class="fas fa-paper-plane"></i></button>
-        </div>
-      </div>
-    </div>
-  </section>
+</main>
 
 </main>
 
-<!-- Create Channel Modal -->
-<div class="modal-overlay" id="createChannelModal">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-header">
-      <h3>New Channel</h3>
-      <button class="modal-close" data-modal="createChannelModal"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label>Channel Name <span class="required">*</span></label>
-        <input type="text" id="newChannelName" placeholder="e.g. general" />
-      </div>
-      <div class="form-group">
-        <label>Description</label>
-        <input type="text" id="newChannelDesc" placeholder="What is this channel for?" />
-      </div>
-      <div class="form-group">
-        <label>Type</label>
-        <select id="newChannelType">
-          <option value="public">Public (visible to all)</option>
-          <option value="private">Private (invite only)</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" data-modal="createChannelModal">Cancel</button>
-      <button class="btn-primary" id="saveChannelBtn"><i class="fas fa-plus"></i> Create Channel</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODALS -->
 
-<!-- Add Client Modal -->
-<div class="modal-overlay" id="clientModal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="clientModalTitle">Add New Client</h2>
-      <button class="modal-close" data-modal="clientModal"><i class="fas fa-times"></i></button>
-    </div>
-    <div class="modal-body">
-      <form id="clientForm">
-        <input type="hidden" id="clientId" />
-        <div class="form-row">
-          <div class="form-group">
-            <label>First Name *</label>
-            <input type="text" id="clientFirstName" placeholder="First name" required />
+        <div class="auth-landing-wrap">
+          <h1 class="auth-headline">Run your business<br><span class="auth-headline-accent">smarter, not harder.</span></h1>
+          <p class="auth-sub">Clients, bookings, team, revenue — all in one place. Trusted by 1,000+ service businesses.</p>
+
+          <div class="auth-cta-group">
+            <button class="auth-cta-primary" id="authGoSignIn">
+              <i class="fas fa-right-to-bracket"></i>
+              <span>Sign In</span>
+              <i class="fas fa-arrow-right auth-cta-arrow"></i>
+            </button>
+            <button class="auth-cta-secondary" id="authGoCreate">
+              <i class="fas fa-rocket"></i>
+              <span>Get Started Free</span>
+            </button>
           </div>
-          <div class="form-group">
+
+          <p class="auth-terms">By continuing, you agree to our <a href="/affiliate-terms" target="_blank">Terms</a> &amp; Privacy Policy.</p>
+
+          <div class="auth-landing-reviews" id="authLandingReviews">
+            <div class="auth-landing-review-card">
+              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 4.9/5</div>
+              <p>"We doubled booked jobs in 60 days. Quotes and follow-ups are finally organized."</p>
+              <span>Sarah M. · Window Cleaning Co.</span>
+            </div>
+            <div class="auth-landing-review-card">
+              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 5.0/5</div>
+              <p>"Team scheduling, payroll, and owner insights in one dashboard. Huge time saver."</p>
+              <span>Mike L. · Home Services</span>
+            </div>
+            <div class="auth-landing-review-card">
+              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 4.8/5</div>
+              <p>"Simple to onboard techs with invite codes. We scaled from 2 to 9 employees fast."</p>
+              <span>Jessica T. · Cleaning Business</span>
+            </div>
+          </div>
+            <input type="text" id="clientFirstName" placeholder="First name" required />
             <label>Last Name *</label>
             <input type="text" id="clientLastName" placeholder="Last name" required />
           </div>
@@ -1825,6 +1823,13 @@
           </button>
         </div>
 
+        <div class="auth-social-proof auth-landing-reviews">
+          <div class="auth-social-proof-title"><i class="fas fa-star"></i> Trusted by service teams in the field every day</div>
+          <div class="auth-review-item"><strong>Sarah M.</strong> Window Cleaning Co. <span>"We cut admin time in half and close more repeat jobs."</span></div>
+          <div class="auth-review-item"><strong>Mike L.</strong> Home Services <span>"Quotes, scheduling, and payroll all in one place made scaling easy."</span></div>
+          <div class="auth-review-item"><strong>Jessica T.</strong> Cleaning Business <span>"Simple onboarding, clear reporting, and real follow-through for our team."</span></div>
+        </div>
+
         <p class="auth-terms">By continuing, you agree to our <a href="/affiliate-terms" target="_blank">Terms</a> &amp; Privacy Policy.</p>
       </div>
 
@@ -1883,14 +1888,6 @@
             <div class="acc-text">
               <strong>Join as Employee</strong>
               <span>Enter your invite code to join</span>
-            </div>
-            <i class="fas fa-chevron-right acc-arrow"></i>
-          </button>
-          <button class="auth-choice-card" id="authChoiceAffiliate">
-            <div class="acc-icon acc-icon-purple"><i class="fas fa-handshake-angle"></i></div>
-            <div class="acc-text">
-              <strong>Affiliate Partner</strong>
-              <span>Earn commissions by referring businesses</span>
             </div>
             <i class="fas fa-chevron-right acc-arrow"></i>
           </button>
@@ -2066,19 +2063,7 @@
       <h2>Welcome To Service Mafia</h2>
     </div>
     <div class="modal-body">
-        <p class="subtitle" id="onboardingSubtitle">Tell us if you are creating a business workspace or joining an existing one.</p>
-        <div id="onboardStepChoose" style="margin-top:18px;">
-          <div class="dashboard-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
-            <button class="card" id="onboardChooseOwnerBtn" type="button" style="text-align:left;cursor:pointer;">
-              <div class="card-header"><h3>I am a business owner</h3></div>
-              <div class="card-body"><p>Set up a new workspace, configure billing basics, and create the owner account.</p></div>
-            </button>
-            <button class="card" id="onboardChooseJoinBtn" type="button" style="text-align:left;cursor:pointer;">
-              <div class="card-header"><h3>I am joining a business</h3></div>
-              <div class="card-body"><p>Enter your business join code, then create your employee account.</p></div>
-            </button>
-          </div>
-        </div>
+        <p class="subtitle" id="onboardingSubtitle">Step 1: Create your owner account.</p>
         <div id="onboardStepOwnerAccount" style="display:none;margin-top:18px;">
           <div class="form-row">
             <div class="form-group">
@@ -2100,12 +2085,10 @@
               <input type="password" id="onboardOwnerPasswordConfirm" placeholder="Confirm password" />
             </div>
           </div>
+        </div>
+        <div id="onboardStepOwnerVerify" style="display:none;margin-top:18px;">
           <div class="form-row">
-            <div class="form-group">
-              <label>Affiliate Promo Code (optional)</label>
-              <input type="text" id="onboardAffiliatePromoCode" placeholder="AFF-1234" />
-            </div>
-            <div class="form-group">
+            <div class="form-group" style="max-width:360px;">
               <label>Email Verification Code</label>
               <input type="text" id="onboardOwnerVerificationCode" placeholder="6-digit code" maxlength="6" />
             </div>
@@ -2114,6 +2097,7 @@
             <button class="btn-secondary" id="onboardOwnerSendVerificationBtn" type="button"><i class="fas fa-envelope"></i> Send Verification Code</button>
             <button class="btn-primary" id="onboardOwnerVerifyCodeBtn" type="button"><i class="fas fa-check"></i> Verify Email</button>
           </div>
+          <p class="subtitle" style="margin-top:10px;">Verify your business email to continue setup and activate your owner account securely.</p>
         </div>
         <div id="onboardStepOwnerBusiness" style="display:none;margin-top:18px;">
           <div class="form-row">
@@ -2122,57 +2106,38 @@
               <input type="text" id="onboardCompanyName" placeholder="Your company name" />
             </div>
             <div class="form-group">
-              <label>Business Category</label>
-              <select id="onboardBusinessCategory">
-                <option value="window-cleaning">Window Cleaning</option>
-                <option value="roof-cleaning">Roof Cleaning</option>
-                <option value="pressure-washing">Pressure Washing</option>
-                <option value="landscaping">Landscaping</option>
-                <option value="hvac">HVAC</option>
-                <option value="plumbing">Plumbing</option>
-                <option value="electrical">Electrical</option>
-                <option value="moving">Moving Services</option>
-                <option value="cleaning">General Cleaning</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Custom Category (optional)</label>
-              <input type="text" id="onboardCustomCategory" placeholder="e.g. Solar Panel Cleaning" />
-            </div>
-            <div class="form-group">
               <label>Number Of Employees</label>
               <input type="number" id="onboardEmployeeCount" min="1" placeholder="5" />
             </div>
           </div>
-        </div>
-        <div id="onboardStepOwnerRevenue" style="display:none;margin-top:18px;">
-          <div class="form-group">
-            <label>Monthly Target Revenue</label>
-            <input type="number" id="onboardMonthlyRevenue" min="0" step="100" placeholder="25000" />
+          <div class="form-row">
+            <div class="form-group">
+              <label>Current Monthly Revenue</label>
+              <input type="number" id="onboardCurrentRevenue" min="0" step="100" placeholder="25000" />
+            </div>
+            <div class="form-group">
+              <label>Targeted Monthly Revenue</label>
+              <input type="number" id="onboardMonthlyRevenue" min="0" step="100" placeholder="40000" />
+            </div>
           </div>
-          <p class="subtitle">Set your monthly goal so dashboards and progress metrics can track target performance.</p>
+        </div>
+        <div id="onboardStepOwnerFeatures" style="display:none;margin-top:18px;">
+          <div class="workspace-list-item"><div><strong>Advanced Quotes</strong><span>Create detailed line-item quotes with tax and notes.</span></div><span class="pill-tag success">Included</span></div>
+          <div class="workspace-list-item"><div><strong>Smart Scheduling</strong><span>Weekly/monthly scheduling with assignment controls and team visibility.</span></div><span class="pill-tag success">Included</span></div>
+          <div class="workspace-list-item"><div><strong>Payroll + Owner Portal</strong><span>Run payroll, monitor team activity, and track growth goals in one dashboard.</span></div><span class="pill-tag success">Included</span></div>
+          <div class="workspace-list-item"><div><strong>Invite Code Team Onboarding</strong><span>Invite employees using your business join code.</span></div><span class="pill-tag success">Included</span></div>
         </div>
         <div id="onboardStepOwnerPlan" style="display:none;margin-top:18px;">
-          <div class="form-group">
-            <label>Billing Cycle</label>
-            <select id="onboardBillingCycle">
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly (Save 40%)</option>
-            </select>
-          </div>
           <div class="plan-grid" id="onboardPlanGrid" style="margin-top:12px;">
             <button class="plan-card" id="onboardPlanStarter" type="button" data-plan="starter">
               <span class="plan-name">Starter</span>
               <span class="plan-price" id="onboardPlanStarterPrice">$20/mo</span>
-              <span class="plan-copy">Perfect for teams up to 3 employees.</span>
+              <span class="plan-copy">Perfect for teams up to 7 employees.</span>
             </button>
             <button class="plan-card featured" id="onboardPlanProfessional" type="button" data-plan="professional">
               <span class="plan-name">Professional</span>
               <span class="plan-price" id="onboardPlanProfessionalPrice">$50/mo</span>
-              <span class="plan-copy">Best for teams up to 10 employees.</span>
+              <span class="plan-copy">Best for teams up to 15 employees.</span>
             </button>
             <button class="plan-card" id="onboardPlanPremium" type="button" data-plan="premium">
               <span class="plan-name">Premium</span>
@@ -2245,20 +2210,21 @@
           </div>
         </div>
     </div>
-      <div class="modal-footer" id="onboardingFooterChoose">
-        <button class="btn-secondary" id="onboardingResetBtn" type="button">Reset</button>
-      </div>
       <div class="modal-footer" id="onboardingFooterOwnerAccount" style="display:none;">
         <button class="btn-secondary" id="onboardOwnerAccountBackBtn" type="button">Back</button>
         <button class="btn-primary" id="onboardOwnerAccountNextBtn" type="button">Continue</button>
+      </div>
+      <div class="modal-footer" id="onboardingFooterOwnerVerify" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerVerifyBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardOwnerVerifyNextBtn" type="button">Continue</button>
       </div>
       <div class="modal-footer" id="onboardingFooterOwnerBusiness" style="display:none;">
         <button class="btn-secondary" id="onboardOwnerBusinessBackBtn" type="button">Back</button>
         <button class="btn-primary" id="onboardOwnerBusinessNextBtn" type="button">Continue</button>
       </div>
-      <div class="modal-footer" id="onboardingFooterOwnerRevenue" style="display:none;">
-        <button class="btn-secondary" id="onboardOwnerRevenueBackBtn" type="button">Back</button>
-        <button class="btn-primary" id="onboardOwnerRevenueNextBtn" type="button">Continue</button>
+      <div class="modal-footer" id="onboardingFooterOwnerFeatures" style="display:none;">
+        <button class="btn-secondary" id="onboardOwnerFeaturesBackBtn" type="button">Back</button>
+        <button class="btn-primary" id="onboardOwnerFeaturesNextBtn" type="button">Continue</button>
       </div>
       <div class="modal-footer" id="onboardingFooterOwnerPlan" style="display:none;">
         <button class="btn-secondary" id="onboardOwnerPlanBackBtn" type="button">Back</button>
