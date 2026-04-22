@@ -1338,46 +1338,24 @@
 
 </main>
 
-</main>
-
 <!-- MODALS -->
 
-        <div class="auth-landing-wrap">
-          <h1 class="auth-headline">Run your business<br><span class="auth-headline-accent">smarter, not harder.</span></h1>
-          <p class="auth-sub">Clients, bookings, team, revenue — all in one place. Trusted by 1,000+ service businesses.</p>
-
-          <div class="auth-cta-group">
-            <button class="auth-cta-primary" id="authGoSignIn">
-              <i class="fas fa-right-to-bracket"></i>
-              <span>Sign In</span>
-              <i class="fas fa-arrow-right auth-cta-arrow"></i>
-            </button>
-            <button class="auth-cta-secondary" id="authGoCreate">
-              <i class="fas fa-rocket"></i>
-              <span>Get Started Free</span>
-            </button>
-          </div>
-
-          <p class="auth-terms">By continuing, you agree to our <a href="/affiliate-terms" target="_blank">Terms</a> &amp; Privacy Policy.</p>
-
-          <div class="auth-landing-reviews" id="authLandingReviews">
-            <div class="auth-landing-review-card">
-              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 4.9/5</div>
-              <p>"We doubled booked jobs in 60 days. Quotes and follow-ups are finally organized."</p>
-              <span>Sarah M. · Window Cleaning Co.</span>
-            </div>
-            <div class="auth-landing-review-card">
-              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 5.0/5</div>
-              <p>"Team scheduling, payroll, and owner insights in one dashboard. Huge time saver."</p>
-              <span>Mike L. · Home Services</span>
-            </div>
-            <div class="auth-landing-review-card">
-              <div class="auth-landing-review-head"><i class="fas fa-star"></i> 4.8/5</div>
-              <p>"Simple to onboard techs with invite codes. We scaled from 2 to 9 employees fast."</p>
-              <span>Jessica T. · Cleaning Business</span>
-            </div>
-          </div>
+<!-- Add Client Modal -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="clientModalTitle">Add New Client</h2>
+      <button class="modal-close" data-modal="clientModal"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="clientForm">
+        <input type="hidden" id="clientId" />
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name *</label>
             <input type="text" id="clientFirstName" placeholder="First name" required />
+          </div>
+          <div class="form-group">
             <label>Last Name *</label>
             <input type="text" id="clientLastName" placeholder="Last name" required />
           </div>

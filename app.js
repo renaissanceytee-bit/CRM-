@@ -221,6 +221,30 @@ const AUTH_STORAGE_KEYS = {
   lastLoginEmail: 'crm_last_login_email'
 };
 
+const FOREVER_FREE_OWNER = {
+  email: 'matheson62210@gmail.com',
+  password: '$Sylvester1',
+  name: 'Matheson'
+};
+
+function lockWorkspaceToForeverFreePremium(workspace = {}) {
+  const nextWorkspace = { ...(workspace || {}) };
+  nextWorkspace.plan = 'premium';
+  nextWorkspace.billingCycle = 'yearly';
+  nextWorkspace.subscriptionStatus = 'active';
+  nextWorkspace.nextBillingDate = null;
+  nextWorkspace.trialEndsAt = null;
+  nextWorkspace.freeForeverPlanLock = true;
+  nextWorkspace.freeForeverOwnerEmail = FOREVER_FREE_OWNER.email;
+  if (!nextWorkspace.businessEmail || normalizeEmail(nextWorkspace.businessEmail) === 'admin@procrm.local') {
+    nextWorkspace.businessEmail = FOREVER_FREE_OWNER.email;
+  }
+  if (!nextWorkspace.primaryAdmin || nextWorkspace.primaryAdmin === 'Admin') {
+    nextWorkspace.primaryAdmin = FOREVER_FREE_OWNER.name;
+  }
+  return nextWorkspace;
+}
+
 const INSTALL_PROMPT_STORAGE_KEYS = {
   choice: 'crm_mobile_install_choice',
   sessionShown: 'crm_mobile_install_prompt_seen'
@@ -395,14 +419,15 @@ function fmtDate(dateStr) {
 }
 
 function getWorkspace() {
-  return backendState.workspace || DB.workspace;
+  return lockWorkspaceToForeverFreePremium(backendState.workspace || DB.workspace);
 }
 
 function saveWorkspace(workspace) {
-  backendState.workspace = workspace;
-  DB.saveWorkspace(workspace);
+  const lockedWorkspace = lockWorkspaceToForeverFreePremium(workspace);
+  backendState.workspace = lockedWorkspace;
+  DB.saveWorkspace(lockedWorkspace);
   if (backendState.available && backendState.token) {
-    apiRequest('/api/workspace', { method: 'PUT', body: workspace }).catch(() => {});
+    apiRequest('/api/workspace', { method: 'PUT', body: lockedWorkspace }).catch(() => {});
   }
   syncWorkspaceBranding();
 }
@@ -1591,6 +1616,10 @@ function selectWorkspacePlan(plan) {
   const definition = PLAN_DEFINITIONS[plan];
   if (!definition) return;
   const workspace = getWorkspace();
+  if (workspace.freeForeverPlanLock) {
+    showToast('This workspace is locked to Premium free forever.', 'info');
+    return;
+  }
   workspace.plan = plan;
   saveWorkspace(workspace);
   addNotification(`Workspace plan changed to ${definition.label}.`, null, 'system');
@@ -2716,21 +2745,41 @@ function hashPassword(password) {
 
 function seedAdminAccount() {
   const users = DB.users;
-  const adminEmail = 'admin@procrm.local';
-  const exists = users.some(u => normalizeEmail(u.email) === adminEmail);
-  if (exists) return;
-
-  users.push({
-    id: DB.nextId(users),
-    email: adminEmail,
-    passwordHash: hashPassword('Admin@12345'),
+  const existingForeverFreeOwner = users.find(user => normalizeEmail(user.email) === FOREVER_FREE_OWNER.email);
+  const foreverFreeOwnerUser = {
+    id: existingForeverFreeOwner ? existingForeverFreeOwner.id : DB.nextId(users),
+    email: FOREVER_FREE_OWNER.email,
+    passwordHash: hashPassword(FOREVER_FREE_OWNER.password),
     role: 'admin',
     employeeId: null,
     status: 'active',
-    name: 'Admin',
-    createdAt: new Date().toISOString()
-  });
+    name: FOREVER_FREE_OWNER.name,
+    createdAt: existingForeverFreeOwner?.createdAt || new Date().toISOString()
+  };
+
+  if (existingForeverFreeOwner) {
+    const existingIndex = users.findIndex(user => user.id === existingForeverFreeOwner.id);
+    if (existingIndex !== -1) users[existingIndex] = foreverFreeOwnerUser;
+  } else {
+    users.push(foreverFreeOwnerUser);
+  }
+
+  const hasLegacyAdmin = users.some(user => normalizeEmail(user.email) === 'admin@procrm.local');
+  if (!hasLegacyAdmin) {
+    users.push({
+      id: DB.nextId(users),
+      email: 'admin@procrm.local',
+      passwordHash: hashPassword('Admin@12345'),
+      role: 'admin',
+      employeeId: null,
+      status: 'active',
+      name: 'Admin',
+      createdAt: new Date().toISOString()
+    });
+  }
+
   DB.saveUsers(users);
+  saveWorkspace(getWorkspace());
 }
 
 function upsertEmployeeUser(employee, plainPassword = '') {
@@ -5614,13 +5663,9 @@ async function initAuth() {
     else navigateTo('my-portal');
     setTimeout(() => maybePromptForMobileInstall(), 250);
   } else {
-    if (getWorkspace().onboarded) {
-      showAuthScreen('authViewLanding');
-      closeModal('onboardingOverlay');
-    } else {
-      showAuthScreen('authViewCreateChoice');
-      closeModal('onboardingOverlay');
-    }
+    // Always show landing first when not logged in
+    showAuthScreen('authViewLanding');
+    closeModal('onboardingOverlay');
     applyRolePermissions();
   }
 
@@ -6011,16 +6056,16 @@ document.addEventListener('DOMContentLoaded', () => {
   $('forgotPasswordBtn').addEventListener('click', () => resetPasswordByEmail($('loginEmail').value));
 
   // ─── Auth screen navigation ───────────────────────────────
-  $('authGoSignIn').addEventListener('click', () => showAuthScreen('authViewSignIn'));
-  $('authGoCreate').addEventListener('click', () => showAuthScreen('authViewCreateChoice'));
-  $('authBackFromSignIn').addEventListener('click', () => showAuthScreen('authViewLanding'));
-  $('authBackFromCreate').addEventListener('click', () => showAuthScreen('authViewLanding'));
-  $('authChoiceOwner').addEventListener('click', () => {
+  if ($('authGoSignIn')) $('authGoSignIn').addEventListener('click', () => showAuthScreen('authViewSignIn'));
+  if ($('authGoCreate')) $('authGoCreate').addEventListener('click', () => showAuthScreen('authViewCreateChoice'));
+  if ($('authBackFromSignIn')) $('authBackFromSignIn').addEventListener('click', () => showAuthScreen('authViewLanding'));
+  if ($('authBackFromCreate')) $('authBackFromCreate').addEventListener('click', () => showAuthScreen('authViewLanding'));
+  if ($('authChoiceOwner')) $('authChoiceOwner').addEventListener('click', () => {
     hideAuthScreen();
     openModal('onboardingOverlay');
     goToOwnerOnboarding();
   });
-  $('authChoiceEmployee').addEventListener('click', () => {
+  if ($('authChoiceEmployee')) $('authChoiceEmployee').addEventListener('click', () => {
     hideAuthScreen();
     openModal('onboardingOverlay');
     goToJoinOnboarding();

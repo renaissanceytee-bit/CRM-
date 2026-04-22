@@ -37,6 +37,11 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const FOREVER_FREE_OWNER = {
+  email: 'matheson62210@gmail.com',
+  password: '$Sylvester1',
+  name: 'Matheson'
+};
 
 const emailTransporter = (SMTP_HOST && SMTP_FROM)
   ? nodemailer.createTransport({
@@ -68,10 +73,14 @@ const workspaceDefaults = {
   industry: '',
   businessCategory: 'window-cleaning',
   customCategory: '',
-  businessEmail: 'admin@procrm.local',
-  primaryAdmin: 'Admin',
+  businessEmail: FOREVER_FREE_OWNER.email,
+  primaryAdmin: FOREVER_FREE_OWNER.name,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-  plan: 'starter',
+  plan: 'premium',
+  billingCycle: 'yearly',
+  subscriptionStatus: 'active',
+  freeForeverPlanLock: true,
+  freeForeverOwnerEmail: FOREVER_FREE_OWNER.email,
   onboarded: false,
   employeeJoinCode: '',
   expectedTeamSize: 1,
@@ -209,12 +218,27 @@ function ensureTables() {
 }
 
 function seedDefaults() {
+  const now = new Date().toISOString();
   const userCount = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
   if (!userCount) {
     db.prepare(`
       INSERT INTO users (email, password_hash, role, employee_id, status, name, created_at)
       VALUES (?, ?, 'admin', NULL, 'active', 'Admin', ?)
-    `).run('admin@procrm.local', legacyHash('Admin@12345'), new Date().toISOString());
+    `).run('admin@procrm.local', legacyHash('Admin@12345'), now);
+  }
+
+  const foreverFreeOwner = db.prepare('SELECT id FROM users WHERE email = ?').get(FOREVER_FREE_OWNER.email);
+  if (!foreverFreeOwner) {
+    db.prepare(`
+      INSERT INTO users (email, password_hash, role, employee_id, status, name, created_at)
+      VALUES (?, ?, 'admin', NULL, 'active', ?, ?)
+    `).run(FOREVER_FREE_OWNER.email, legacyHash(FOREVER_FREE_OWNER.password), FOREVER_FREE_OWNER.name, now);
+  } else {
+    db.prepare(`
+      UPDATE users
+      SET password_hash = ?, role = 'admin', status = 'active', name = ?
+      WHERE id = ?
+    `).run(legacyHash(FOREVER_FREE_OWNER.password), FOREVER_FREE_OWNER.name, foreverFreeOwner.id);
   }
 
   const workspaceRow = db.prepare('SELECT json FROM workspace WHERE id = 1').get();
@@ -228,7 +252,6 @@ function seedDefaults() {
 
   const sampleEmployee = db.prepare('SELECT id FROM users WHERE email = ?').get('employee.test@fieldflowcrm.local');
   if (!sampleEmployee) {
-    const now = new Date().toISOString();
     const legacyEmployeeId = 9001;
     db.prepare(`
       INSERT INTO employees (legacy_id, first_name, last_name, email, phone, role, status, created_at)
@@ -250,6 +273,24 @@ function seedDefaults() {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function lockWorkspaceToForeverFreePremium(workspace = {}) {
+  const nextWorkspace = { ...(workspace || {}) };
+  nextWorkspace.plan = 'premium';
+  nextWorkspace.billingCycle = 'yearly';
+  nextWorkspace.subscriptionStatus = 'active';
+  nextWorkspace.nextBillingDate = null;
+  nextWorkspace.trialEndsAt = null;
+  nextWorkspace.freeForeverPlanLock = true;
+  nextWorkspace.freeForeverOwnerEmail = FOREVER_FREE_OWNER.email;
+  if (!nextWorkspace.businessEmail || normalizeEmail(nextWorkspace.businessEmail) === 'admin@procrm.local') {
+    nextWorkspace.businessEmail = FOREVER_FREE_OWNER.email;
+  }
+  if (!nextWorkspace.primaryAdmin || nextWorkspace.primaryAdmin === 'Admin') {
+    nextWorkspace.primaryAdmin = FOREVER_FREE_OWNER.name;
+  }
+  return nextWorkspace;
 }
 
 function isValidEmail(email) {
@@ -300,10 +341,10 @@ function consumeVerifiedEmail(email, purpose) {
 
 function getWorkspace() {
   const row = db.prepare('SELECT json FROM workspace WHERE id = 1').get();
-  if (!row) return structuredClone(workspaceDefaults);
+  if (!row) return lockWorkspaceToForeverFreePremium(structuredClone(workspaceDefaults));
   try {
     const parsed = JSON.parse(row.json);
-    return {
+    return lockWorkspaceToForeverFreePremium({
       ...workspaceDefaults,
       ...parsed,
       notificationPrefs: { ...workspaceDefaults.notificationPrefs, ...(parsed.notificationPrefs || {}) },
@@ -319,18 +360,19 @@ function getWorkspace() {
         payoutHistory: Array.isArray(parsed.growth?.payoutHistory) ? parsed.growth.payoutHistory : []
       },
       serviceCatalog: Array.isArray(parsed.serviceCatalog) ? parsed.serviceCatalog : workspaceDefaults.serviceCatalog
-    };
+    });
   } catch {
-    return structuredClone(workspaceDefaults);
+    return lockWorkspaceToForeverFreePremium(structuredClone(workspaceDefaults));
   }
 }
 
 function saveWorkspace(workspace) {
+  const lockedWorkspace = lockWorkspaceToForeverFreePremium(workspace);
   db.prepare(`
     INSERT INTO workspace (id, json, updated_at)
     VALUES (1, ?, ?)
     ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at
-  `).run(JSON.stringify(workspace), new Date().toISOString());
+  `).run(JSON.stringify(lockedWorkspace), new Date().toISOString());
 }
 
 function serializeUser(user) {
