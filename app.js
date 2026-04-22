@@ -5697,19 +5697,10 @@ function logout() {
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.getRegistrations()
-    .then(registrations => Promise.all(registrations.map(registration => registration.unregister())))
-    .then(() => {
-      if (!('caches' in window)) return;
-      return caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key))));
-    })
-    .catch(() => {})
-    .finally(() => {
-      navigator.serviceWorker.register(`sw.js?v=${Date.now()}`).then(registration => {
-        serviceWorkerRegistration = registration;
-        if (registration.update) registration.update().catch(() => {});
-      }).catch(() => {});
-    });
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(registration => {
+    serviceWorkerRegistration = registration;
+    if (registration.update) registration.update().catch(() => {});
+  }).catch(() => {});
 }
 
 // ─── INIT & EVENT LISTENERS ──────────────────────────────────
