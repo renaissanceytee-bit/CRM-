@@ -1,4 +1,4 @@
-const CACHE_NAME = 'service-mafia-v3';
+const CACHE_NAME = 'service-mafia-v4';
 const APP_SHELL = [
   '/',
   'index.html',
@@ -38,12 +38,16 @@ self.addEventListener('fetch', event => {
   if (isNavigation) {
     event.respondWith(
       fetch(event.request)
-        .then(response => {
+        .then(async response => {
           if (response && response.ok) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+            return response;
           }
-          return response;
+
+          // If the server returns 404/500 for a navigation, recover with cached app shell.
+          const cachedPage = await caches.match(event.request);
+          return cachedPage || caches.match('/') || caches.match('index.html') || response;
         })
         .catch(async () => {
           const cachedPage = await caches.match(event.request);
